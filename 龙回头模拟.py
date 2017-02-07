@@ -1,5 +1,9 @@
 '''
 change log
+20170207
+1.增加开盘价，收盘价盈利统计
+2.增加EMA均线买入标准
+
 2017-01-16
 1. xuan gu biao zhun xiu gai, li shi hui ce biao xian bu hao
   a) 10 ri huan shou he zhang fu kao qian
@@ -66,6 +70,8 @@ import numpy as np
 from datetime import datetime
 from matplotlib import pylab
 import copy
+import talib
+g_EMA = True
 g_security_return_value = ['T+%dOdds','T+%dRet','T+%d MaxProfit','T+%dMaxLose','T+%dOpenret' ,'T+%dCloseret']
 g_head_indexs = ['tradedate','secID','tradeprice']
 _numcandidate=300
@@ -79,8 +85,8 @@ g_security_history = {}
 g_currnetdate = ''
 g_previousdate = ''
 now = time.strftime('%Y%m%d')
-start = '20170101'  # 回测起始时间
-end = now    # 回测结束时间
+start = '20160101'  # 回测起始时间
+end = '20161231'    # 回测结束时间
 benchmark = 'HS300'    # 参考标准
 universe = DynamicUniverse('A').apply_filter(Factor.VOL10.nlarge(_numcandidate))#&Factor.REVS10.nlarge(_numcandiate)) #set_universe('A') # 证券池，支持股票和基金
 capital_base = 2000000  # 起始资金
@@ -91,7 +97,7 @@ if freq == 'm':
 else:
     g_ifreq = 1
 g_imaxback = 5 #最大回测天数 T+imaxback后的收益
-g_targetprice = 1#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
+g_targetprice = 4#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
 
 
 # round函数四舍五入
@@ -189,18 +195,27 @@ def findcandidate(guci,_previousdate,target):
             golden5 = start + 0.5*period
             golden618 = start + 0.618*period
             golden8 = start + 0.809*period
-            
-            MA20 = _closePrice.mean()
-            MA10 = _closePrice[-10:20].mean()
-            MA5 = _closePrice[-5:20].mean()
+            MA30=MA20=MA10=MA5=_ma5=_ma10=_ma20=0.
             _closep5 = _closePrice.iloc[15]
             _closep10 = _closePrice.iloc[10]
             _closep20 = _closePrice.iloc[0]
-            _ma5 = (MA5 - _closep5/5)*ma5f
-            _ma10 = (MA10 - _closep10/10)*ma10f
-            _ma20 = (MA20 - _closep20/20)*ma20f
             _closep30 = _shis['closePrice'].iloc[-30]
-            MA30 = _shis['closePrice'][count-30:count].mean()
+            if g_EMA:
+                MA30 = talib.EMA(_shis['closePrice'].values,timeperiod=30)[-1]
+                MA20 = talib.EMA(_shis['closePrice'].values,timeperiod=20)[-1]
+                MA10 = talib.EMA(_shis['closePrice'].values,timeperiod=10)[-1]
+                MA5 = talib.EMA(_shis['closePrice'].values,timeperiod=5)[-1]
+                _ma5 = MA5
+                _ma10 = MA10
+                _ma20 = MA20
+            else:
+                MA20 = _closePrice.mean()
+                MA10 = _closePrice[-10:20].mean()
+                MA5 = _closePrice[-5:20].mean()
+                _ma5 = (MA5 - _closep5/5)*ma5f
+                _ma10 = (MA10 - _closep10/10)*ma10f
+                _ma20 = (MA20 - _closep20/20)*ma20f
+                MA30 = _shis['closePrice'][count-30:count].mean()
             #股价T日还在均线/golden上，T+1日可能破均线/golden,并且均线向上
             if target == 2 and _closep10 < MA10 and MA5 < _closep and _ma5 > _closep*0.9\
             or target == 4 and _closep20 < MA20 and MA10 < _closep and _ma10 > _closep*0.9\
@@ -349,11 +364,13 @@ i = 1
 while i <= g_imaxback:
     #make the table title
     added = [x %(i) for x in g_security_return_value]
-    print added
     indexs = indexs + added
     i = i + 1
 data = pd.DataFrame.from_dict(data= g_security_history,orient='index')
-data.to_excel('龙回头模拟交易%s-%s-%d.xlsx' %(start,end,g_targetprice),header=indexs)  
+if g_EMA:
+    data.to_excel('龙回头模拟交易%s-%s-EMA-%d.xlsx' %(start,end,g_targetprice),header=indexs)  
+else:
+    data.to_excel('龙回头模拟交易%s-%s-%d.xlsx' %(start,end,g_targetprice),header=indexs)  
 
 perf['cumulative_returns'].plot()
 perf['benchmark_cumulative_returns'].plot()
