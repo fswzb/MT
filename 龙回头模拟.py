@@ -65,7 +65,9 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from matplotlib import pylab
-
+import copy
+g_security_return_value = ['T+%dOdds','T+%dRet','T+%d MaxProfit','T+%dMaxLose','T+%dOpenret' ,'T+%dCloseret']
+g_head_indexs = ['tradedate','secID','tradeprice']
 _numcandidate=300
 purchased = {}
 ma5f=5./4
@@ -78,7 +80,7 @@ g_currnetdate = ''
 g_previousdate = ''
 now = time.strftime('%Y%m%d')
 start = '20170101'  # 回测起始时间
-end = '20170117'    # 回测结束时间
+end = now    # 回测结束时间
 benchmark = 'HS300'    # 参考标准
 universe = DynamicUniverse('A').apply_filter(Factor.VOL10.nlarge(_numcandidate))#&Factor.REVS10.nlarge(_numcandiate)) #set_universe('A') # 证券池，支持股票和基金
 capital_base = 2000000  # 起始资金
@@ -229,7 +231,7 @@ def findcandidate(guci,_previousdate,target):
                      value = ["(Norm)",golden8,_ma5,golden618,_ma10,golden5,_ma20]
                 cl = s[0:6]+_shis['secShortName'][0]
                 stocks[s] = value
-                #print '%s : %s' %(cl,value)
+                print '%s : %s' %(cl,value)
     return stocks
 
 #if a) T day 没有停牌
@@ -253,8 +255,8 @@ def canbuy(s,targetprice,date):
 def initialize(account): # 初始化虚拟账户状态
     global g_security_history
     #init the fist element of g_security_history
-    _val = ['tradedate','secID','tradeprice']
-    i = 4*g_imaxback
+    _val = copy.copy(g_head_indexs)
+    i = len(g_security_return_value)*g_imaxback
     while i > 0:
         _val.append(0.)
         i = i - 1
@@ -278,7 +280,7 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
             targetprice = v[g_targetprice]
             if canbuy(s,targetprice,g_currentdate):
                 _val =[g_currentdate,s,min(targetprice,account.reference_price[s])]
-                i = 4*g_imaxback
+                i = len(g_security_return_value)*g_imaxback
                 while i > 0:
                     _val.append(0.)
                     i = i - 1
@@ -306,7 +308,7 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
         if g_difflist[i] > g_imaxback:
             break
         #T-i日买入的股票当天收益
-        interval = 4*g_difflist[i]-1
+        interval = len(g_security_return_value)*(g_difflist[i]-1)+len(g_head_indexs)
         if account.reference_price[v[1]] > v[2]:
             v[interval] = v[interval]+1
         v[interval+1] = account.reference_price[v[1]]/v[2]-1 + v[interval+1]
@@ -318,11 +320,15 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
             v[interval+1] = v[interval+1]/g_ifreq#the return
             v[interval+2] = _his['highestPrice'][0]/v[2]-1#the max possible profit
             v[interval+3] = _his['lowestPrice'][0]/v[2]-1#the max possible lose
+            v[interval+4] = _his['openPrice'][0]/v[2]-1#the open price profit
+            v[interval+5] = _his['closePrice'][0]/v[2]-1#the close price profit
             g_security_history[0][interval]=g_security_history[0][interval] + v[interval]
             g_security_history[0][interval+1]=g_security_history[0][interval+1] + v[interval+1]
             g_security_history[0][interval+2]=g_security_history[0][interval+2] + v[interval+2]
             g_security_history[0][interval+3]=g_security_history[0][interval+3] + v[interval+3]
-
+            g_security_history[0][interval+4]=g_security_history[0][interval+4] + v[interval+4]
+            g_security_history[0][interval+5]=g_security_history[0][interval+5] + v[interval+5]
+    
         i = i - 1
     return
 def continuefrom(filename):
@@ -332,16 +338,18 @@ def continuefrom(filename):
         g_security_history[_i] = excel.iloc[_i].tolist()
         _i=_i+1
     return excel['tradedate'].iloc[-1]
-start = someday(continuefrom('龙回头模拟交易20160101-20161231-1.xlsx'),1)
-print start
+continueday = start
+#continueday = someday(continuefrom('龙回头模拟交易选时20170101-20170111-1.xlsx'),1)
+#print continueday
 
-bt, perf = quartz.backtest(start = start,end = end,benchmark = benchmark,universe = universe,capital_base = capital_base,initialize = initialize,handle_data = handle_data,refresh_rate = refresh_rate,freq = freq)
+bt, perf =  quartz.backtest(start = continueday,end = end,benchmark = benchmark,universe = universe,capital_base = capital_base,initialize = initialize,handle_data = handle_data,refresh_rate = refresh_rate,freq = freq)
 
-indexs = ['tradedate','secID','tradeprice']
+indexs = copy.copy(g_head_indexs)
 i = 1
 while i <= g_imaxback:
     #make the table title
-    added = ['T+%dOdds' %(i),'T+%dRet' %(i),'T+%d MaxProfit' %(i),'T+%dMaxLose' %(i)]
+    added = [x %(i) for x in g_security_return_value]
+    print added
     indexs = indexs + added
     i = i + 1
 data = pd.DataFrame.from_dict(data= g_security_history,orient='index')
