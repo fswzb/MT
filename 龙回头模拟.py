@@ -1,5 +1,8 @@
 '''
 change log
+20170209
+1.输出文件增加target price信息
+
 20170207
 1.增加开盘价，收盘价盈利统计
 2.增加EMA均线买入标准
@@ -85,8 +88,8 @@ g_security_history = {}
 g_currnetdate = ''
 g_previousdate = ''
 now = time.strftime('%Y%m%d')
-start = '20160101'  # 回测起始时间
-end = '20161231'    # 回测结束时间
+start = '20161230'  # 回测起始时间
+end = '20170110'   # 回测结束时间
 benchmark = 'HS300'    # 参考标准
 universe = DynamicUniverse('A').apply_filter(Factor.VOL10.nlarge(_numcandidate))#&Factor.REVS10.nlarge(_numcandiate)) #set_universe('A') # 证券池，支持股票和基金
 capital_base = 2000000  # 起始资金
@@ -97,7 +100,7 @@ if freq == 'm':
 else:
     g_ifreq = 1
 g_imaxback = 5 #最大回测天数 T+imaxback后的收益
-g_targetprice = 4#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
+g_targetprice = 1#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
 
 
 # round函数四舍五入
@@ -271,6 +274,7 @@ def initialize(account): # 初始化虚拟账户状态
     global g_security_history
     #init the fist element of g_security_history
     _val = copy.copy(g_head_indexs)
+    _val[2] = _val[2]+'-'+str(g_targetprice)
     i = len(g_security_return_value)*g_imaxback
     while i > 0:
         _val.append(0.)
@@ -354,7 +358,7 @@ def continuefrom(filename):
         _i=_i+1
     return excel['tradedate'].iloc[-1]
 continueday = start
-#continueday = someday(continuefrom('龙回头模拟交易选时20170101-20170111-1.xlsx'),1)
+#continueday = someday(continuefrom('龙回头模拟2017-1.xlsx'),1)
 #print continueday
 
 bt, perf =  quartz.backtest(start = continueday,end = end,benchmark = benchmark,universe = universe,capital_base = capital_base,initialize = initialize,handle_data = handle_data,refresh_rate = refresh_rate,freq = freq)

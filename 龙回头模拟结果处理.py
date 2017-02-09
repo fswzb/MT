@@ -3,29 +3,24 @@ from fractions import Fraction
 import numpy
 import pandas as pd
 import talib
+g_EMA=True
 _oneday = 24*60*60
 g_filterma = 30
 now = time.strftime('%Y%m%d')
 def convertdicttoexcel():
-    security_history= {0: ['tradedate', 'secID', 'tradeprice', 26.737499999999997, -0.32289339915965737, 2.0411337887181817, -2.5623261492358362, 23.383333333333336, -0.6820693131674701, 1.504106462623688, -3.0984957290622948, 20.924999999999994, -0.95434602768030752, 1.5213469591190838, -3.1946500832917257, 21.912499999999998, -0.98601046501294776, 1.3332484201909509, -3.0467368662212992, 20.358333333333334, -1.8144454024084757, 0.1607384740107648, -3.5823195805660148]}
-
-    indexs = ['tradedate','secID','tradeprice']
+    security_history=  {0: ['tradedate', 'secID', 'tradeprice-1', 0.8416666666666667, 0.0002784364861057112, 0.046523752327795709, -0.10491309364294121, -0.061996032273479385, 0.021781978316555262, 0.4, -0.0014022842639593626, 0.067005076142131914, -0.048730964467005089, 0.05888324873096451, 0.012690355329949332, 0.029166666666666667, -0.012696700507614182, 0.010152284263959421, -0.040609137055837574, -0.0050761421319795996, -0.0091370558375634126, 0.05416666666666667, -0.024092639593908602, 0.019289340101522834, -0.077157360406091335, -0.020812182741116736, -0.03401015228426385, 0.0, -0.042015651438240258, -0.0050761421319795996, -0.074619289340101425, -0.049238578680202982, -0.036040609137055868], 1: ['20161230', '600099.XSHG', 19.699999999999999, 0.8416666666666667, 0.035587986463621164, 0.056852791878172715, -0.043147208121827263, -0.036040609137055868, 0.056852791878172715, 0.4, -0.0014022842639593626, 0.067005076142131914, -0.048730964467005089, 0.05888324873096451, 0.012690355329949332, 0.029166666666666667, -0.012696700507614182, 0.010152284263959421, -0.040609137055837574, -0.0050761421319795996, -0.0091370558375634126, 0.05416666666666667, -0.024092639593908602, 0.019289340101522834, -0.077157360406091335, -0.020812182741116736, -0.03401015228426385, 0.0, -0.042015651438240258, -0.0050761421319795996, -0.074619289340101425, -0.049238578680202982, -0.036040609137055868]}
+    indexs = security_history[0][:3]
     i = 1
     while i <= 5:
         #make the table title
-        added = ['T+%dOdds' %(i),'T+%dRet' %(i),'T+%d MaxProfit' %(i),'T+%dMaxLose' %(i)]
+        added = ['T+%dOdds' %(i),'T+%dRet' %(i),'T+%d MaxProfit' %(i),'T+%dMaxLose' %(i),'T+%dOpenret' %(i),'T+%dCloseret' %(i)]
         indexs = indexs + added
-        '''
-        #caculate the average of return and odds
-        g_security_history[0][4*i-1] = g_security_history[0][4*i-1]/g_number[i]# average odds
-        g_security_history[0][4*i] = g_security_history[0][4*i]/g_number[i]#average return
-        g_security_history[0][4*i+1] = g_security_history[0][4*i+1]/g_number[i]#average max profilt
-        g_security_history[0][4*i+2] = g_security_history[0][4*i+2]/g_number[i]#average max lose
-        '''
         i = i + 1
+    tradedates = [v[0] for k,v in security_history.items()]
     data = pd.DataFrame.from_dict(data= security_history,orient='index')
-    data.to_excel('龙回头模拟交易选时20150101-20151231-1.xlsx',header=indexs) 
+    data.to_excel('龙回头模拟交易%s-%s-%s.xlsx'%(tradedates[1],tradedates[-1],indexs[2][-1]),header=indexs) 
     pass
+#convertdicttoexcel()
 def someday(_tradedate,howlong):
     _tradedate = time.mktime(time.strptime(_tradedate,'%Y%m%d'))+howlong*_oneday
     _tradedate = time.localtime(_tradedate)
@@ -41,10 +36,18 @@ def CantBuy(data,i):
         return False
     _date = data['tradedate'].iloc[i]
     _start = someday(_date,-100)
-    _data = DataAPI.MktIdxdGet(beginDate=_start,endDate=someday(_date,-1),indexID='399317.ZICN',field=u'',pandas='1')
-    _man_30 = _data['closeIndex'][-30:].mean()
-    _man_10 = _data['closeIndex'][-10:].mean()
-    _man_20 = _data['closeIndex'][-20:].mean()
+    _data = []
+    _man10=_man20=_man30=0
+    if g_EMA:
+        _data = DataAPI.MktIdxdGet(endDate=someday(_date,-1),indexID='399317.ZICN',field=u'',pandas='1')
+        _man_30 = talib.EMA(_data['closeIndex'].values,timeperiod=30)[-1]
+        _man_10 =  talib.EMA(_data['closeIndex'].values,timeperiod=10)[-1]
+        _man_20 =  talib.EMA(_data['closeIndex'].values,timeperiod=20)[-1]
+    else:
+        _data = DataAPI.MktIdxdGet(beginDate=_start,endDate=someday(_date,-1),indexID='399317.ZICN',field=u'',pandas='1')
+        _man_30 = _data['closeIndex'][-30:].mean()
+        _man_10 = _data['closeIndex'][-10:].mean()
+        _man_20 = _data['closeIndex'][-20:].mean()
     
     data['filterma%d' %g_filterma][i] = -321
     if _man_30 < _man_20 and _man_20 < _man_10:
@@ -124,5 +127,4 @@ def caculateRMulti(n,r,data):
         _i = _i + 1
     return _TnRet,_TnMinRet,_TnMaxRet,_TnMaxProfit,_TnMaxLose,_TnValid,_TnStop,_TnProfit
 
-#Outputhandle('龙回头模拟交易20140101-20141231-1.xlsx')        
-
+#Outputhandle('龙回头模拟交易20160101-20161231-1.xlsx')        
