@@ -1,5 +1,8 @@
 '''
 change log
+20170210
+1. 优化代码，把一些函数做成独立的库
+
 20170209
 1.输出文件增加target price信息
 
@@ -74,6 +77,10 @@ from datetime import datetime
 from matplotlib import pylab
 import copy
 import talib
+import lib.mymath
+import lib.selstock
+reload(lib.mymath)
+reload(lib.selstock)
 g_EMA = True
 g_security_return_value = ['T+%dOdds','T+%dRet','T+%d MaxProfit','T+%dMaxLose','T+%dOpenret' ,'T+%dCloseret']
 g_head_indexs = ['tradedate','secID','tradeprice']
@@ -89,7 +96,7 @@ g_currnetdate = ''
 g_previousdate = ''
 now = time.strftime('%Y%m%d')
 start = '20161230'  # 回测起始时间
-end = '20170110'   # 回测结束时间
+end = now   # 回测结束时间
 benchmark = 'HS300'    # 参考标准
 universe = DynamicUniverse('A').apply_filter(Factor.VOL10.nlarge(_numcandidate))#&Factor.REVS10.nlarge(_numcandiate)) #set_universe('A') # 证券池，支持股票和基金
 capital_base = 2000000  # 起始资金
@@ -100,20 +107,7 @@ if freq == 'm':
 else:
     g_ifreq = 1
 g_imaxback = 5 #最大回测天数 T+imaxback后的收益
-g_targetprice = 1#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
-
-
-# round函数四舍五入
-def rod(origin,n):
-    rd = round(origin,n)
-    ird = int(rd*10**(n+1))
-    yu = 5
-    origin = round(origin,n+1)
-    diff = int(origin*10**(n+1)) - ird
-    diff = diff - yu
-    if  diff >= 0:
-        rd = rd + 1./10**n
-    return round(rd,n)
+g_targetprice = 4#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
 
 def get_week_day(date):
     week_day_dict={0:'星期一',1:'星期二',2:'星期三',3:'星期四',4:'星期五',5:'星期六',6:'星期天'}
@@ -141,116 +135,6 @@ def someday(_tradedate,howlong):
     _tradedate = time.localtime(_tradedate)
     _tradedate = time.strftime('%Y%m%d',_tradedate)
     return _tradedate   
-
-def ztcs(data):
-    data = data.tolist()
-    if len(data) < 2:
-        return 0
-    i = 0
-    zt = 0
-    previouszt = 0
-    while True:
-        if(data[i+1] == rod(data[i]*1.1,2) and data[i+1] >= previouszt):
-            zt = zt + 1
-            previouszt = data[i+1]
-        i = i + 1
-        if i > len(data)-2:
-            break
-    return zt
-
-# period 涨幅连续统计时间，change，涨幅标准, return true or false, and how long after the max
-def continueup(dataturnover,datalowest,datahighest,period,change):
-    _ret = False
-    _count = len(datalowest)
-    _i = _count
-    while _i >= period and period <= _count:
-        _dataL = datalowest[_i-period:_i]
-        _dataH = datahighest[_i-period:_i]
-        _dataT = dataturnover[_i-period:_i]
-        _max = _dataH.max()
-        if(_dataH.iloc[-1] > _dataL.iloc[0] and _max/_dataL.min() > change and _dataT.mean() > 0.03):
-            _ret = True
-            return _ret,datahighest.index[-1] - _dataH[_dataH == _max].index[0]
-        _i = _i - 1
-    return _ret,_count #if go here, ret must be false
-
-
-#target 1，3，5对应黄金分割0.809，0.618，0.5选股。2，4，6对应5日10日20日均线选股
-def findcandidate(guci,_previousdate,target):
-    stocks = {}
-    for s in guci:
-        _shis = DataAPI.MktEqudAdjGet(endDate=_previousdate,secID=s,isOpen=1,pandas='1')
-        count = len(_shis)
-        if(count< 90):#to caculdate the MA20 of 30 days need at lease 50 days transaction and also we don't cound new stock
-            continue
-        _closePrice = _shis['closePrice'][count-20:count]
-        _lowestPrice = _shis['lowestPrice'][count-30:count]
-        _highestPrice = _shis['highestPrice'][count-30:count]
-        
-        start = _lowestPrice.min()
-        end   = _highestPrice.max()
-        
-        _closep = _closePrice.iloc[-1]
-        if (end/start >= 1.5) \
-        and (_closep < end) \
-        and ztcs(_shis['closePrice'][count-30:count]) >= 3:      
-            period = end - start
-            golden5 = start + 0.5*period
-            golden618 = start + 0.618*period
-            golden8 = start + 0.809*period
-            MA30=MA20=MA10=MA5=_ma5=_ma10=_ma20=0.
-            _closep5 = _closePrice.iloc[15]
-            _closep10 = _closePrice.iloc[10]
-            _closep20 = _closePrice.iloc[0]
-            _closep30 = _shis['closePrice'].iloc[-30]
-            if g_EMA:
-                MA30 = talib.EMA(_shis['closePrice'].values,timeperiod=30)[-1]
-                MA20 = talib.EMA(_shis['closePrice'].values,timeperiod=20)[-1]
-                MA10 = talib.EMA(_shis['closePrice'].values,timeperiod=10)[-1]
-                MA5 = talib.EMA(_shis['closePrice'].values,timeperiod=5)[-1]
-                _ma5 = MA5
-                _ma10 = MA10
-                _ma20 = MA20
-            else:
-                MA20 = _closePrice.mean()
-                MA10 = _closePrice[-10:20].mean()
-                MA5 = _closePrice[-5:20].mean()
-                _ma5 = (MA5 - _closep5/5)*ma5f
-                _ma10 = (MA10 - _closep10/10)*ma10f
-                _ma20 = (MA20 - _closep20/20)*ma20f
-                MA30 = _shis['closePrice'][count-30:count].mean()
-            #股价T日还在均线/golden上，T+1日可能破均线/golden,并且均线向上
-            if target == 2 and _closep10 < MA10 and MA5 < _closep and _ma5 > _closep*0.9\
-            or target == 4 and _closep20 < MA20 and MA10 < _closep and _ma10 > _closep*0.9\
-            or target == 6 and _closep30 < MA30 and MA20 < _closep and _ma20 > _closep*0.9\
-            or target == 1 and _closep10 < MA10 and golden8 < _closep and golden8 > _closep*0.9\
-            or target == 3 and _closep20 < MA20 and golden618 < _closep and golden618 > _closep*0.9\
-            or target == 5 and _closep30 < MA30 and golden5 < _closep and golden5 > _closep*0.9:
-
-                #check if continously up
-                _cup,_dam = continueup(_shis['turnoverRate'][count-30:count],_lowestPrice,_highestPrice,7,1.5)
-                if(_cup == False):
-                    continue
-                #check how long after max
-                _days = 5
-                if(target == 3 or target == 4):
-                    _days = 10
-                elif(target == 5 or target == 6):
-                    _days = 20
-                if(_dam > _days ):
-                    continue
-                #check if history max
-                history = DataAPI.MktEqudAdjGet(beginDate='19991219',endDate=_previousdate,secID=s,isOpen=1,pandas='1')
-                _hmax = history['highestPrice'].max()
-                _ratio = _closep/_hmax-1.
-                if abs(_ratio) < 0.1:
-                    value = ["(HMAX)",golden8,_ma5,golden618,_ma10,golden5,_ma20]
-                else:
-                     value = ["(Norm)",golden8,_ma5,golden618,_ma10,golden5,_ma20]
-                cl = s[0:6]+_shis['secShortName'][0]
-                stocks[s] = value
-                print '%s : %s' %(cl,value)
-    return stocks
 
 #if a) T day 没有停牌
 #   b) T day(currentdate)'s lowest price below targetprice,
@@ -293,7 +177,8 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
     if account.current_minute.find('09:30') >= 0:
         g_currentdate = account.current_date.strftime('%Y%m%d')
         g_previousdate = account.previous_date.strftime('%Y%m%d')
-        g_candidates = findcandidate(account.universe,g_previousdate,g_targetprice)
+        print '%s %s' %(g_currentdate,get_week_day(g_currentdate))
+        g_candidates = lib.selstock.findcandidate(account.universe,g_previousdate,g_targetprice,0.5,7,g_EMA)
         #try to buy the candidates
         for s,v in g_candidates.items():
             targetprice = v[g_targetprice]
@@ -305,7 +190,6 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
                     i = i - 1
                 g_security_history[len(g_security_history)] = _val
         #if g_currentdate[-2:].find('01')>=0 or g_currentdate[-2:].find('15')>=0:#every month
-        print '%s %s' %(g_currentdate,get_week_day(g_currentdate))
         print 'security_history %s' %g_security_history
         
     #量化收益 T+n，假设手里的股票分成240份，每分钟卖出一份。1.当天卖出的盈利概率 2.当天卖出的盈利百分比 
@@ -358,9 +242,10 @@ def continuefrom(filename):
         _i=_i+1
     return excel['tradedate'].iloc[-1]
 continueday = start
-#continueday = someday(continuefrom('龙回头模拟2017-1.xlsx'),1)
+#continueday = someday(continuefrom('龙回头模拟交易20161230-20170208-EMA-1.xlsx'),1)
 #print continueday
-
+continueday='20170208'
+end='20170208'
 bt, perf =  quartz.backtest(start = continueday,end = end,benchmark = benchmark,universe = universe,capital_base = capital_base,initialize = initialize,handle_data = handle_data,refresh_rate = refresh_rate,freq = freq)
 
 indexs = copy.copy(g_head_indexs)

@@ -1,6 +1,8 @@
 from datetime import datetime
 import time
 import pandas as pd
+import lib.mymath
+reload(lib.mymath)
 # 开启缓存，当前Notebook所有DataAPI数据都会缓存
 DataAPI.settings.cache_enabled = True
 _oneday = 24*60*60
@@ -14,18 +16,6 @@ def Market(before,now,inID):
     print "成交量%.1f(%.1f)"%((data['turnoverValue'].iloc[-1]/100000000.),((data['turnoverValue'].iloc[-1] - data['turnoverValue'].iloc[-2])/100000000.))
     print "30日均线%.2f%%"%((data['closeIndex'].iloc[-1]/data['closeIndex'][count-30:count].mean()-1)*100)
     pass
-
-# round函数四舍五入
-def rod(origin,n):
-    rd = round(origin,n)
-    ird = int(rd*10**(n+1))
-    yu = 5
-    origin = round(origin,n+1)
-    diff = int(origin*10**(n+1)) - ird
-    diff = diff - yu
-    if  diff >= 0:
-        rd = rd + 1./10**n
-    return round(rd,n)
 
 def lxztordt(data,date,zt):
     _lxzt={}
@@ -49,11 +39,11 @@ def lxztordt(data,date,zt):
                 maxper=1.1
             else:
                 maxper = 0.9
-        if (zt==False and ct_1 <= rod(ct_2*maxper,2))\
-        or (zt and ct_1 >= rod(ct_2*maxper,2) and (_history['turnoverRate'][_len-2] > 0.03 or _history['highestPrice'][_len-2]-_history['lowestPrice'][_len-2] > 0)):
+        if (zt==False and ct_1 <= lib.mymath.rod(ct_2*maxper,2))\
+        or (zt and ct_1 >= lib.mymath.rod(ct_2*maxper,2) and (_history['turnoverRate'][_len-2] > 0.03 or _history['highestPrice'][_len-2]-_history['lowestPrice'][_len-2] > 0)):
             _lxzt[k] = round(_history['turnoverRate'][len(_history)-2]+ _history['turnoverRate'][len(_history)-1],2)
-            if (zt==False and ct_2<=rod(ct_2*maxper,2))\
-            or (zt and ct_2 >= rod(ct_3*maxper,2)  and (_history['turnoverRate'][_len-3] > 0.03 or _history['highestPrice'][_len-3]-_history['lowestPrice'][_len-3] > 0)):
+            if (zt==False and ct_2<=lib.mymath.rod(ct_2*maxper,2))\
+            or (zt and ct_2 >= lib.mymath.rod(ct_3*maxper,2)  and (_history['turnoverRate'][_len-3] > 0.03 or _history['highestPrice'][_len-3]-_history['lowestPrice'][_len-3] > 0)):
                 _lxzt3[k] = round(_lxzt[k] + _history['turnoverRate'][len(_history)-3],2)
         if(abs(ct - _history['highestPrice'].max()) < _history['highestPrice'].max()*0.1):
             if k in _lxzt:
@@ -106,10 +96,10 @@ def dailyReview(data):
     for index,row in voldata.iterrows():
         _iter = _iter+1
         chg = row['closePrice']-row['preClosePrice']
-        chgmax = rod(row['preClosePrice']*1.1,2)
-        chgmin = rod(row['preClosePrice']*0.9,2)
-        chg_5 = rod(row['preClosePrice']*0.95,2)
-        chg5 = rod(row['preClosePrice']*1.05,2)          
+        chgmax = lib.mymath.rod(row['preClosePrice']*1.1,2)
+        chgmin = lib.mymath.rod(row['preClosePrice']*0.9,2)
+        chg_5 = lib.mymath.rod(row['preClosePrice']*0.95,2)
+        chg5 = lib.mymath.rod(row['preClosePrice']*1.05,2)          
         if(chg > 0):
             _zgp = _zgp+1
             if chgmax <= row['closePrice']\
@@ -194,7 +184,7 @@ def dailyfp(now):
         print "3连板股票 %d %s"%(len(_lxzt3),_lxzt3)
     return _nextdate
 #main()
-i = 60
+i = 20
 #now = '20101231'
 while True:
     if(is_weekend(now) == True):
