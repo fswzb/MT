@@ -20,10 +20,7 @@ def Market(before,now,inID):
     pass
 
 def yesterday(_tradedate):
-    _tradedate = time.mktime(time.strptime(_tradedate,'%Y%m%d'))-_oneday
-    _tradedate = time.localtime(_tradedate)
-    _tradedate = time.strftime('%Y%m%d',_tradedate)
-    return _tradedate
+    return someday(_tradedate,-1)
 
 def someday(_tradedate,howlong):
     _tradedate = time.mktime(time.strptime(_tradedate,'%Y%m%d'))+howlong*_oneday
