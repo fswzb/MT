@@ -81,13 +81,8 @@ def MktequGet(_tradedate):
 def yesterdayztret(dic,date):
     z = 0.
     r = 0.
-    today = someday(date,1)
-    while True:
-        ret = DataAPI.MktIdxdGet(tradeDate=today,indexID='399317.ZICN',pandas='1')
-        if len(ret) == 0:
-            today = someday(today,1)
-        else:
-            break
+    today = date
+    ret = DataAPI.MktIdxdGet(tradeDate=today,indexID='399317.ZICN',pandas='1')
     for i in dic.keys():
         info = DataAPI.MktEqudAdjGet(tradeDate=today,secID=i,isOpen='1',pandas='1')
         if len(info) > 0:
