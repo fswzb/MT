@@ -36,13 +36,6 @@ def get_week_day(date):
         day = time.strptime(date,'%Y%m%d')
     return week_day_dict[day.tm_wday]
 
-def is_weekend(date):
-    if date.find('-')>=0:
-        day = time.strptime(date,'%Y-%m-%d')
-    else:
-        day = time.strptime(date,'%Y%m%d')
-    return day.tm_wday == 5 or day.tm_wday == 6
-
 def dailyReview(data):
     voldata = data.sort('turnoverRate',ascending=0)
     _dtgpdic = {}
@@ -82,13 +75,8 @@ def dailyReview(data):
 
 
 def MktequGet(_tradedate):
-    while True:
-        allgp = DataAPI.MktEqudAdjGet(tradeDate=_tradedate,secID=set_universe("A"),isOpen='1',pandas='1')
-        if(len(allgp) == 0):
-            _tradedate = yesterday(_tradedate)
-        else:
-            break        
-    return _tradedate,allgp
+    allgp = DataAPI.MktEqudAdjGet(tradeDate=_tradedate,secID=set_universe("A"),isOpen='1',pandas='1')
+    return allgp
 
 def yesterdayztret(dic,date):
     z = 0.
@@ -108,27 +96,23 @@ def yesterdayztret(dic,date):
             z = z+1
     return r/len(dic),z/len(dic)
 
-def dailyfp(now):
+def dailyfp(now,t1ztdic):
     now = someday(now,0)
     before = someday(now,-70)
     Market(before,now,['399317.ZICN'])
     #T日复盘
     _tradedate=now
-    _tradedate,allgp = MktequGet(_tradedate)
-    _nextdate = _tradedate
+    allgp = MktequGet(_tradedate)
     _Tret,_Tchance,_Thighvolret,_Thchance,_Thighvolval,_Tratio,_Tzt,_Tzsdt,_Tdf5,_Tztdic,_Thturnrate,_Tturnrate,_Tdtdic = dailyReview(allgp)
     _lxzt= msum.lxztordt(_Tztdic.keys(),_tradedate)
     _lxdt= msum.lxztordt(_Tdtdic.keys(),_tradedate,False)
-    #T-1日复盘
-    _tradedate = yesterday(_tradedate)
-    _tradedate,allgp = MktequGet(_tradedate)
-    _T1ret,_T1chance,_T1highvolret,_T1hchance,_T1highvolval,_T1ratio,_T1zt,_T1zsdt,_T1df5,_T1ztdic,_T1hturnrate,_T1turnrate,_T1dtdic = dailyReview(allgp)
     print "高换手赚钱概率%.2f%%(收益%.2f%%)成交量%.1f(换手率%.2f%% 大盘换手率%.2f%%)"%(round(_Thchance,3)*100,round(_Thighvolret,3)*100,_Thighvolval/100000000.,_Thturnrate*100,_Tturnrate*100)
     print "赚钱概率%.2f%%(收益%.2f%%)"%(round(_Tchance,3)*100,round(_Tret,3)*100)
-    print "真实涨跌停比 %d(%d):%d(%d)"%(len(_Tztdic),len(_Tztdic)-len(_T1ztdic),_Tzsdt,_Tzsdt-_T1zsdt)
-    #print "涨跌停比 %d(%d):%d(%d)"%(_Tzt,_Tzt-_T1zt,len(_Tdtdic),len(_Tdtdic)-len(_T1dtdic))
+    print "真实涨跌停比 %d:%d"%(len(_Tztdic),_Tzsdt)
+    _retlxzt=[]
     for k,v in _lxzt.iteritems(): 
         if k > 1:
+            _retlxzt = _retlxzt+v
             print "%d连板股票 %d %s"%(k,len(v),map(lambda x:[x[0][:6],'%.2f%%'%(round(x[1],3)*100)],v))
         else:
             print "真实涨停 %d %s"%(len(v),map(lambda x:[x[0][:6],'%.2f%%'%(round(x[1],3)*100)],v))
@@ -137,18 +121,22 @@ def dailyfp(now):
             print "连续%d个跌停股票 %d %s"%(k,len(v),map(lambda x:[x[0][:6],'%.2f%%'%(round(x[1],3)*100)],v))
         else:
             print "跌停股票 %d %s"%(len(v),map(lambda x:[x[0][:6],'%.2f%%'%(round(x[1],3)*100)],v)) 
-    print "跌幅超5股票 %d(%d)"%(_Tdf5,_Tdf5-_T1df5)
-    _T1ztret,_T1ztchance = yesterdayztret(_T1ztdic,_tradedate)#昨日涨停赚钱效应
-    print "昨日涨停赚钱概率%.2f%%(收益%.2f%%)"%(round(_T1ztchance,3)*100,round(_T1ztret,3)*100)
-    return _nextdate
+    print "跌幅超5股票 %d"%(_Tdf5)
+    if len(t1ztdic) != 0:
+        _T1ztret,_T1ztchance = yesterdayztret(t1ztdic,_date)#昨日涨停赚钱效应
+        print "昨日涨停赚钱概率%.2f%%(收益%.2f%%)"%(round(_T1ztchance,3)*100,round(_T1ztret,3)*100)
+    return [_e[0] for _e in _retlxzt],_Tztdic
 #main()
-i = 1
-while True:
-    if(is_weekend(now) == True):
-        now = yesterday(now)
-        continue
-    now = dailyfp(now)
-    now = yesterday(now)
-    i = i -1
-    if(i==0):
-        break
+from collections import deque
+gc2rank = deque(maxlen=150)
+_begindate = '20170101'
+_his = DataAPI.MktIdxdGet(beginDate=_begindate,endDate=now,field='tradeDate',indexID='399317.ZICN')
+_T1ztdic={}
+for _date in _his['tradeDate'].values:
+    _date = _date.replace('-','')
+    _lxztlist,_T1ztdic = dailyfp(_date,_T1ztdic)
+    for _e in _lxztlist:
+        gc2rank.append(_e)
+    _temp = msum.zfrankin(10,someday(_date,-20*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
+    print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100)],_temp))#,'%.2f%%'%(round(x[2],3)*100)],_temp))
+
