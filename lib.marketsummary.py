@@ -56,11 +56,6 @@ def lxztordt(gc,tradedate,zt=True,turnrate=0.03):
     return _conbandict
 
 #lxztordt(['000425','600307','002307','000877'],'20170210')
-def findlastindexof(ticker,allgp,indexlist):
-    for ind in indexlist:
-        if allgp['ticker'][ind] == ticker:
-            break
-    return ind
 
 def zfrankin(timeperiod,begindate,_tradedate,gc,x=0.5,turnrate=0.5,howlong=90):
     """
@@ -87,23 +82,25 @@ def zfrankin(timeperiod,begindate,_tradedate,gc,x=0.5,turnrate=0.5,howlong=90):
     _lowest = 99999999
     _zfdit ={}
     _ticker = allgp['ticker'].iloc[0]
+    _tickertime = timeperiod
     _indexlist = sorted(allgp['ticker'].index,reverse=True)
-    _tickerlastindex = findlastindexof(_ticker,allgp,_indexlist)
-    _tickertime = _tickerlastindex+1
-    for _r in allgp.iterrows():
-        if _ticker != _r[1]['ticker']:
+    for _r in _indexlist:
+        if _ticker != allgp.loc[_r]['ticker']:
             if(_turnrate > turnrate):
                 _zfdit[_ticker]=[_ticker,_highest/_lowest-1.,_turnrate]
-            _ticker = _r[1]['ticker']
+            _ticker = allgp.loc[_r]['ticker']
             _highest=_turnrate=0
             _lowest=99999999
-            _tickerlastindex = findlastindexof(_ticker,allgp,_indexlist)
-            _tickertime = _tickerlastindex - _r[0]+1
-        if _tickerlastindex - _r[0] > timeperiod:
+            _tickertime = timeperiod
+        if _tickertime <= 0:
             continue
-        _highest = max(_highest,_r[1]['highestPrice'])
-        _lowest = min(_lowest,_r[1]['lowestPrice'])
-        _turnrate = _turnrate + _r[1]['turnoverRate']
+        if allgp.loc[_r]['highestPrice'] > _highest:
+            _highest = allgp.loc[_r]['highestPrice']
+            _lowest = allgp.loc[_r]['lowestPrice']# reset the lowest price 
+            _turnrate = 0# reset the turnover rate
+        _lowest = min(_lowest,allgp.loc[_r]['lowestPrice'])
+        _turnrate = _turnrate + allgp.loc[_r]['turnoverRate']
+        _tickertime = _tickertime - 1
     #handle the last security in gc
     if(_turnrate > turnrate):
         _zfdit[_ticker]=[_ticker,_highest/_lowest-1.,_turnrate]
@@ -111,4 +108,4 @@ def zfrankin(timeperiod,begindate,_tradedate,gc,x=0.5,turnrate=0.5,howlong=90):
     zfranklist = [ v for v in sorted(_zfdit.values(),key=lambda x:x[1],reverse=True)]
     zfranklist = [j for (i,j) in enumerate(zfranklist) if j[1] >= x and len(DataAPI.MktEqudAdjGet(endDate=_tradedate,ticker=j[0],isOpen='1',pandas='1'))>howlong]
     return zfranklist
-#zfrankin(10,'20170101','20170208',['000877.XSHE','000001.XSHE'],x=0.5)
+#zfrankin(10,'20170101','20170210',['000877.XSHE','000001.XSHE'],x=0.1)

@@ -1,7 +1,3 @@
-#coding=utf-8
-
-#coding=utf-8
-
 import pandas as pd
 import numpy as np
 import talib
@@ -14,18 +10,23 @@ ma20f=20./19
 # period 涨幅连续统计时间，change，涨幅标准, return true or false, and how long after the max
 def continueup(dataturnover,datalowest,datahighest,period,change):
     _ret = False
-    _count = len(datalowest)
-    _i = _count
-    while _i >= period and period <= _count:
-        _dataL = datalowest[_i-period:_i]
-        _dataH = datahighest[_i-period:_i]
-        _dataT = dataturnover[_i-period:_i]
-        _max = _dataH.max()
-        if(_dataH.iloc[-1] > _dataL.iloc[0] and _max/_dataL.min() > change and _dataT.mean() > 0.03):
-            _ret = True
-            return _ret,datahighest.index[-1] - _dataH[_dataH == _max].index[0]
-        _i = _i - 1
-    return _ret,_count #if go here, ret must be false
+    _count = _highest = 0
+    _lowest = 9999999
+    _len = len(dataturnover)
+    _start = _len-1
+    while _ret == False and _start-period >=0:
+        _reverseindexs = range(_start,_start-period,-1)
+        for _ir in _reverseindexs:
+            if datahighest.iloc[_ir] > _highest:
+                _highest = datahighest.iloc[_ir]
+                _lowest = datalowest.iloc[_ir]
+                _count = _len - _ir
+            _lowest = min(_lowest,datalowest.iloc[_ir])
+            if _highest/_lowest > change:
+                _ret = True
+                break
+        _start = _start - 1
+    return _ret,_count
 
 def ztcs(data):
     data = data.tolist()
