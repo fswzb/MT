@@ -46,7 +46,7 @@ def ztcs(data):
 #target 1，3，5对应黄金分割0.809，0.618，0.5选股。2，4，6对应5日10日20日均线选股
 def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False):
     """
-    给定股票代码转化为股票内部编码
+    选龙回头标的股
     Args:
         guci  (list): 候选股票列表
         target (int): 1，3，5对应黄金分割0.809，0.618，0.5选股。2，4，6对应5日10日20日均线选股
@@ -79,27 +79,30 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False):
             golden5 = start + 0.5*period
             golden618 = start + 0.618*period
             golden8 = start + 0.809*period
-            MA30=MA20=MA10=MA5=_ma5=_ma10=_ma20=0.
-            _closep5 = _closePrice.iloc[15]
-            _closep10 = _closePrice.iloc[10]
-            _closep20 = _closePrice.iloc[0]
-            _closep30 = _shis['closePrice'].iloc[-30]
+            MA30l=MA20l=MA10l=MA5l=_ma5=_ma10=_ma20=0.
             if _EMA:
-                MA30 = talib.EMA(_shis['closePrice'].values,timeperiod=30)[-1]
-                MA20 = talib.EMA(_shis['closePrice'].values,timeperiod=20)[-1]
-                MA10 = talib.EMA(_shis['closePrice'].values,timeperiod=10)[-1]
-                MA5 = talib.EMA(_shis['closePrice'].values,timeperiod=5)[-1]
-                _ma5 = MA5
-                _ma10 = MA10
-                _ma20 = MA20
+                MA30l = talib.EMA(_shis['closePrice'].values,timeperiod=30)
+                MA20l = talib.EMA(_shis['closePrice'].values,timeperiod=20)
+                MA10l = talib.EMA(_shis['closePrice'].values,timeperiod=10)
+                MA5l = talib.EMA(_shis['closePrice'].values,timeperiod=5)
+                _ma5 = MA5l[-1]
+                _ma10 = MA10l[-1]
+                _ma20 = MA20l[-1]
             else:
-                MA20 = _closePrice.mean()
-                MA10 = _closePrice[-10:20].mean()
-                MA5 = _closePrice[-5:20].mean()
-                _ma5 = (MA5 - _closep5/5)*ma5f
-                _ma10 = (MA10 - _closep10/10)*ma10f
-                _ma20 = (MA20 - _closep20/20)*ma20f
-                MA30 = _shis['closePrice'][count-30:count].mean()
+                MA30l = talib.MA(_shis['closePrice'].values,timeperiod=30)
+                MA20l = talib.MA(_shis['closePrice'].values,timeperiod=20)
+                MA10l = talib.MA(_shis['closePrice'].values,timeperiod=10)
+                MA5l = talib.MA(_shis['closePrice'].values,timeperiod=5)
+                _ma5 = (MA5l[-1] - _closePrice.iloc[15]/5)*ma5f
+                _ma10 = (MA10l[-1] - _closePrice.iloc[10]/10)*ma10f
+                _ma20 = (MA20l[-1] - _closePrice.iloc[0]/20)*ma20f
+            MA5 = MA5l[-1]
+            MA10 = MA10l[-1]
+            MA20 = MA20l[-1]
+            MA30 = MA30l[-1]
+            _closep10 = MA10l[-10]
+            _closep20 = MA20l[-20]
+            _closep30 = MA30l[-30]
             #股价T日还在均线/golden上，T+1日可能破均线/golden,并且均线向上
             if target == 2 and _closep10 < MA10 and MA5 < _closep and _ma5 > _closep*0.9\
             or target == 4 and _closep20 < MA20 and MA10 < _closep and _ma10 > _closep*0.9\
