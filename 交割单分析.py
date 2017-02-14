@@ -1,7 +1,5 @@
-# -*- coding: UTF-8 -*-
 #optimize K graph, skip the dates when no trading
 #for chinese font display
-
 from CAL.PyCAL import font
 import numpy as np
 import pandas as pd
@@ -13,6 +11,8 @@ import matplotlib.ticker as ticker
 from matplotlib.ticker import MultipleLocator
 import time
 import talib
+import lib.selstock as xg
+reload(xg)
 g_oneday = 24*60*60
 def MktDaPan():
     global _dptradedatelist
@@ -65,15 +65,24 @@ def plot_security_his(data,security_name):
     #plot title
     ax0.set_title(u'%s%s 回报%f'%(security_name,security['name'].iloc[0],security['amount'].sum()),fontproperties=font,fontsize='16')
     #plot candlestick graph
-    _period = plot_security_k(security_name,someday(str(security['tradeDate'].iloc[0]),0),someday(str(security['tradeDate'].iloc[-1]),2))
-    _period =[(x.replace('-','')) for x in _period]
-    plotbsp(_period,security)
+    _dfquotes = mktgethis(security_name,someday(str(security['tradeDate'].iloc[0]),-365),someday(str(security['tradeDate'].iloc[-1]),2),[u'tradeDate',u'openPrice',u'highestPrice',u'lowestPrice',u'closePrice'])
+    beginx=0
+    _period =[(x.replace('-','')) for x in _dfquotes['tradeDate']]
+    beginx = _period.index(str(security['tradeDate'].iloc[0]))
+    beginx = max(beginx-20,0)
+    xg.plot_security_k(ax0,_dfquotes,beginx)
+    plotbsp(_period[beginx:],security)
     plt.grid() 
     plottranlog(ax1,security)
     plt.tight_layout()#to avoid the axis label is cut
     plt.show()
     plt.savefig('%s_his.svg'%(security_name))
     pass
+def mktgethis(security_name,begin,end,fieldu=''):
+    _dfquotes = DataAPI.MktEqudAdjGet(ticker=security_name,beginDate=begin,endDate=end,field=fieldu,isOpen=1)
+    if len(_dfquotes) == 0:
+        _dfquotes = DataAPI.MktFunddGet(ticker=security_name,beginDate=begin,endDate=end,field=fieldu)
+    return _dfquotes
 #plot buy/sell log beside the K graph  
 def plottranlog(ax1,security):
     plt.sca(ax1)
@@ -81,9 +90,7 @@ def plottranlog(ax1,security):
     plt.axis([0,10,0,10])
     _ts = security[['tradeDate','price','amount','volume']]
     _tstr = ''
-    _tsvol = 0
-    _tsbuy = 0
-    _tsamount = 0
+    _tsvol = _tsbuy = _tsamount = 0
     _ret = 0.
     for ind, x in _ts.iterrows():
         _date = str(int(x['tradeDate']))
@@ -107,66 +114,6 @@ def plottranlog(ax1,security):
     ax1.set_axis_off()
     return
 
-#K线图
-def format_date(x,pos=None):
-    thisind = np.clip(int(x+0.5), 0, len(dfquotes[u'tradeDate'][_tickerstart:])-1)
-    return dfquotes[u'tradeDate'][_tickerstart:].iloc[thisind]
-#begin day is the firt day when buy the security
-#end day is the last day when sell the security
-def plot_security_k(security_name,begin,end):
-    global dfquotes
-    global _tickerstart
-    dfquotes = mktgethis(security_name,someday(begin,-365),end)
-    dfquotes = dfquotes[[u'tradeDate',u'openPrice',u'highestPrice',u'lowestPrice',u'closePrice']]
-    _period =[(x.replace('-','')) for x in dfquotes['tradeDate']]
-    _tickerstart = _period.index(begin)
-    if _tickerstart > 20:
-        _tickerstart = _tickerstart - 20
-    else:
-        _tickerstart = 0
-    ax = plt.gca()
-    lineandbars = maf.candlestick2_ohlc(ax,dfquotes[u'openPrice'][_tickerstart:].values,\
-                          dfquotes[u'highestPrice'][_tickerstart:].values,\
-                          dfquotes[u'lowestPrice'][_tickerstart:].values,\
-                          dfquotes[u'closePrice'][_tickerstart:].values,\
-                          colorup='r',colordown='g',width=0.5,alpha=1.0)
-    #adjust the k graph's color
-    lineandbars[1].set_edgecolor(lineandbars[1].get_facecolor())
-    lineandbars[0].set_color(lineandbars[1].get_facecolor())
-    _multilocator = int((len(_period)-_tickerstart)/40)#超过40个交易日，日期刻度单位加一天
-    ax.xaxis.set_major_locator(MultipleLocator(1+_multilocator))
-    ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
-    plt.gcf().autofmt_xdate()
-    
-    plotEMA([5,10,20,30],dfquotes[u'closePrice'].values,_tickerstart)
-    for label in ax.xaxis.get_ticklabels():
-        label.set_rotation(90)
-    return _period[_tickerstart:]
-#plot EMA
-#input MAlist, for example [5,10,20]
-def linecolor(num):
-    _i = num%4
-    if _i == 0:
-        return 'r'
-    elif _i == 1:
-        return 'y'
-    elif _i == 2:
-        return 'k'
-    elif _i == 3:
-        return 'g'
-    else:
-        return 'b'
-    pass
-def plotEMA(malist,closearray,startticker):
-    for _das in malist:
-        _ema = talib.EMA(closearray,timeperiod=_das)
-        plt.plot(_ema[startticker:],linecolor(malist.index(_das)))
-    
-def mktgethis(security_name,begin,end):
-    _dfquotes = DataAPI.MktEqudAdjGet(ticker=security_name,beginDate=begin,endDate=end,isOpen=1)
-    if len(_dfquotes) == 0:
-        _dfquotes = DataAPI.MktFunddGet(ticker=security_name,beginDate=begin,endDate=end)
-    return _dfquotes
 def analytictrans(filelist):
     _dataset = pd.concat([filter_trans(_file) for _file in filelist])
     _dataset = _dataset.sort_values(['tradeDate'])

@@ -1,9 +1,121 @@
+#lib.selstock
 import pandas as pd
 import numpy as np
 import talib
-import lib.mymath
-reload(lib.mymath)
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import lib.mymath as mymath
+reload(mymath)
+import matplotlib.dates as madates
+import matplotlib.finance as maf
+from matplotlib import gridspec
+from matplotlib.ticker import MultipleLocator
 
+#K线图
+def format_date(x,pos=None):
+    global dfqoutes
+    global _tickerstart
+    thisind = np.clip(int(x+0.5), 0, len(dfquotes[u'tradeDate'][_tickerstart:])-1)
+    return dfquotes[u'tradeDate'][_tickerstart:].iloc[thisind]
+
+def plot_security_k(ax,_dfquotes,begin,_locatormulti=40):
+    """
+    plot k graph with ma5,10,20,30 line
+    Args:
+        _dfquotes (dataframe): the seurity dataframe which include'openPrice''closePrice''highestPrice''lowestPrice''tradeDate'
+        ax : matplotlib ax object
+        begin : the index of first k bar, _dfquotes[begin:] will be plot
+        _locatormulti (int): adjust the axis's ticker display interval
+    Returns:
+        lineandbars : return candlestick2_ohlc's lineandbars objects
+
+    Examples:
+        >> 
+    """
+    global _tickerstart
+    global dfquotes
+    dfquotes = _dfquotes
+    _tickerstart = begin
+    lineandbars = maf.candlestick2_ohlc(ax,dfquotes[u'openPrice'][_tickerstart:].values,\
+                          dfquotes[u'highestPrice'][_tickerstart:].values,\
+                          dfquotes[u'lowestPrice'][_tickerstart:].values,\
+                          dfquotes[u'closePrice'][_tickerstart:].values,\
+                          colorup='r',colordown='g',width=0.5,alpha=1.0)
+    #adjust the k graph's color
+    lineandbars[1].set_edgecolor(lineandbars[1].get_facecolor())
+    lineandbars[0].set_color(lineandbars[1].get_facecolor())
+    _multilocator = int((len(dfquotes)-_tickerstart)/_locatormulti)#超过40个交易日，日期刻度单位加一天
+    ax.xaxis.set_major_locator(MultipleLocator(1+_multilocator))
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
+    plt.gcf().autofmt_xdate()
+    plotEMA([5,10,20,30],dfquotes[u'closePrice'].values,_tickerstart)
+    for label in ax.xaxis.get_ticklabels():
+        label.set_rotation(90)
+    return lineandbars
+#plot EMA
+#input MAlist, for example [5,10,20]
+def linecolor(num):
+    _i = num%5
+    if _i == 0:
+        return 'r'
+    elif _i == 1:
+        return 'y'
+    elif _i == 2:
+        return 'k'
+    elif _i == 3:
+        return 'g'
+    else:
+        return 'b'
+    pass
+def plotEMA(malist,closearray,startticker):
+    for _das in malist:
+        _ema = talib.EMA(closearray,timeperiod=_das)
+        plt.plot(_ema[startticker:],linecolor(malist.index(_das)))
+"""    
+fig,ax = plt.subplots()
+gdfquotes = DataAPI.MktEqudAdjGet(ticker='600984',endDate='20170212',field=['tradeDate','openPrice','highestPrice','lowestPrice','closePrice'],isOpen=1)
+plot_security_k(ax,gdfquotes,1000)
+plt.show()
+"""
+def format_percentage(y,pos=None):
+    global dfquotes
+    return mymath.rod(y/dfquotes['closePrice'].iloc[-1]-1,3)
+
+def plot_dragonpoint(ax1,_dfquotes,beginindex,targetprices,_imulti=40):
+    """
+    plot k graph with line of targetprices
+    Args:
+        _dfquotes (dataframe): the seurity dataframe which include'openPrice''closePrice''highestPrice''lowestPrice''tradeDate'
+        ax1 : matplotlib ax object
+        beginindex : the index of first k bar, _dfquotes[begin:] will be plot
+        _locatormulti (int): adjust the axis's ticker display interval
+    Returns:
+        none
+
+    Examples:
+        >> 
+    """
+    global gdfquotes
+    gdfquotes = _dfquotes
+    plot_security_k(ax1,gdfquotes,beginindex,_locatormulti=_imulti)
+    ax2 = ax1.twinx()
+    ax2.set_ylim(ax1.get_ylim())
+    ax2.yaxis.set_major_formatter(ticker.FuncFormatter(format_percentage))
+    _zero = gdfquotes['closePrice'].iloc[-1]
+    x1 = range(0,len(gdfquotes)-beginindex+1,len(gdfquotes)-beginindex)
+    for _p in targetprices:
+        y1 = [_p for n in x1]
+        ax1.plot(x1,y1,'b-')
+        ax1.text(targetprices.index(_p)*3,_p,'%.2f(%.2f%%)'%(mymath.rod(_p,2),mymath.rod(_p/_zero-1,2)*100),rotation=90,va='bottom')
+        plt.minorticks_on()
+    pass
+"""
+_gdfquotes = DataAPI.MktEqudAdjGet(ticker='600984',endDate='20170212',field=['tradeDate','openPrice','highestPrice','lowestPrice','closePrice'],isOpen=1)
+_beginindex = max(len(_gdfquotes)-60,0)
+fig, _ax1 = plt.subplots()
+_targetprices = [_gdfquotes['closePrice'].iloc[-1],_gdfquotes['closePrice'].iloc[-1]*0.97]
+plot_dragonpoint(_ax1,_gdfquotes,_beginindex,_targetprices)
+"""
 ma5f=5./4
 ma10f=10./9
 ma20f=20./19
@@ -36,7 +148,7 @@ def ztcs(data):
     zt = 0
     previouszt = 0
     while True:
-        if(data[i+1] == lib.mymath.rod(data[i]*1.1,2) and data[i+1] >= previouszt):
+        if(data[i+1] == mymath.rod(data[i]*1.1,2) and data[i+1] >= previouszt):
             zt = zt + 1
             previouszt = data[i+1]
         i = i + 1
@@ -44,7 +156,7 @@ def ztcs(data):
             break
     return zt
 #target 1，3，5对应黄金分割0.809，0.618，0.5选股。2，4，6对应5日10日20日均线选股
-def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False):
+def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlong=60):
     """
     选龙回头标的股
     Args:
@@ -62,7 +174,7 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False):
     for s in guci:
         _shis = DataAPI.MktEqudAdjGet(endDate=_previousdate,secID=s,isOpen=1,pandas='1')
         count = len(_shis)
-        if(count< 90):#to caculdate the MA20 of 30 days need at lease 50 days transaction and also we don't cound new stock
+        if(count< howlong):#to caculdate the MA20 of 30 days need at lease 50 days transaction and also we don't cound new stock
             continue
         _closePrice = _shis['closePrice'][count-20:count]
         _lowestPrice = _shis['lowestPrice'][count-30:count]
@@ -100,9 +212,10 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False):
             MA10 = MA10l[-1]
             MA20 = MA20l[-1]
             MA30 = MA30l[-1]
-            _closep10 = MA10l[-10]
-            _closep20 = MA20l[-20]
-            _closep30 = MA30l[-30]
+            _closep5 = MA5l[-5]
+            _closep10 = MA10l[-5]
+            _closep20 = MA20l[-5]
+            _closep30 = MA30l[-5]
             #股价T日还在均线/golden上，T+1日可能破均线/golden,并且均线向上
             if target == 2 and _closep10 < MA10 and MA5 < _closep and _ma5 > _closep*0.9\
             or target == 4 and _closep20 < MA20 and MA10 < _closep and _ma10 > _closep*0.9\
