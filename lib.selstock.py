@@ -122,7 +122,9 @@ plt.show()
 '''
 def format_percentage(y,pos=None):
     global dfquotes
-    return mymath.rod(y/dfquotes['closePrice'].iloc[-1]-1,3)
+    _ticklabel = mymath.rod(y/dfquotes['closePrice'].iloc[-1]-1,3)
+    _per = '%.2f%%'%(_ticklabel*100)
+    return _per
 
 def plot_dragonpoint(ax1,_dfquotes,beginindex,targetprices,_imulti=40):
     """
@@ -152,13 +154,13 @@ def plot_dragonpoint(ax1,_dfquotes,beginindex,targetprices,_imulti=40):
         ax1.text(targetprices.index(_p)*3,_p,'%.2f(%.2f%%)'%(mymath.rod(_p,2),mymath.rod(_p/_zero-1,2)*100),rotation=90,va='bottom')
         plt.minorticks_on()
     pass
-"""
-_gdfquotes = DataAPI.MktEqudAdjGet(ticker='600984',endDate='20170212',field=['tradeDate','openPrice','highestPrice','lowestPrice','closePrice'],isOpen=1)
+'''
+_gdfquotes = DataAPI.MktEqudAdjGet(ticker='000877',endDate='20170218',field=['tradeDate','openPrice','highestPrice','lowestPrice','closePrice'],isOpen=1)
 _beginindex = max(len(_gdfquotes)-60,0)
 fig, _ax1 = plt.subplots()
 _targetprices = [_gdfquotes['closePrice'].iloc[-1],_gdfquotes['closePrice'].iloc[-1]*0.97]
 plot_dragonpoint(_ax1,_gdfquotes,_beginindex,_targetprices)
-"""
+'''
 ma5f=5./4
 ma10f=10./9
 ma20f=20./19
