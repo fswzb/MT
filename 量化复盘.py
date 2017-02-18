@@ -123,8 +123,8 @@ def dailyfp(now,t1ztdic):
     return [_e[0] for _e in _retlxzt],_Tztdic
 #main()
 from collections import deque
-gc2rank = deque(maxlen=150)
-_begindate = '20170101'
+gc2rank = deque(maxlen=300)
+_begindate = '20170207'
 _his = DataAPI.MktIdxdGet(beginDate=_begindate,endDate=now,field='tradeDate',indexID='399317.ZICN')
 _T1ztdic={}
 for _date in _his['tradeDate'].values:
@@ -132,6 +132,6 @@ for _date in _his['tradeDate'].values:
     _lxztlist,_T1ztdic = dailyfp(_date,_T1ztdic)
     for _e in _lxztlist:
         gc2rank.append(_e)
-    _temp = msum.zfrankin(10,someday(_date,-20*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
-    print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100)],_temp))#,'%.2f%%'%(round(x[2],3)*100)],_temp))
+    _temp = msum.zfrankin(20,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
+    print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100),'%.2f%%'%(round(x[2],3)*100)],_temp))
 

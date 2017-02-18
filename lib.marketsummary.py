@@ -1,3 +1,4 @@
+#lib.marketsummary
 import lib.mymath as mymath
 reload(mymath)
 def lxztordt(gc,tradedate,zt=True,turnrate=0.03):
@@ -75,22 +76,24 @@ def zfrankin(timeperiod,begindate,_tradedate,gc,x=0.5,turnrate=0.5,howlong=90):
         >> zfrankin(10,'20170101','20170208',['000877.XSHE','000001.XSHE'],x=0.5)
     Returns
     -------
-    list : 涨幅大于X，上市时间超过howlong的股票列表
+    list : 涨幅大于X，交易日超过howlong的股票列表,[股票代码，区间最大涨幅，收盘与最高价回落，区间换手率]['000877',0.87,0.05,1.1]
     """
     allgp = DataAPI.MktEqudAdjGet(beginDate=begindate,endDate=_tradedate,secID=gc,isOpen='1',pandas='1')
     _highest = _turnrate = _ticker = 0
     _lowest = 99999999
     _zfdit ={}
-    _ticker = allgp['ticker'].iloc[0]
     _tickertime = timeperiod
     _indexlist = sorted(allgp['ticker'].index,reverse=True)
+    _ticker = allgp['ticker'].iloc[-1]
+    _closePrice = allgp['closePrice'].iloc[-1]
     for _r in _indexlist:
         if _ticker != allgp.loc[_r]['ticker']:
             if(_turnrate > turnrate):
-                _zfdit[_ticker]=[_ticker,_highest/_lowest-1.,_turnrate]
+                _zfdit[_ticker]=[_ticker,_highest/_lowest-1.,_closePrice/_highest-1.,_turnrate]
             _ticker = allgp.loc[_r]['ticker']
             _highest=_turnrate=0
             _lowest=99999999
+            _closePrice = allgp.loc[_r]['closePrice']
             _tickertime = timeperiod
         if _tickertime <= 0:
             continue
@@ -103,9 +106,9 @@ def zfrankin(timeperiod,begindate,_tradedate,gc,x=0.5,turnrate=0.5,howlong=90):
         _tickertime = _tickertime - 1
     #handle the last security in gc
     if(_turnrate > turnrate):
-        _zfdit[_ticker]=[_ticker,_highest/_lowest-1.,_turnrate]
+        _zfdit[_ticker]=[_ticker,_highest/_lowest-1.,_closePrice/_highest-1.,_turnrate]
     
     zfranklist = [ v for v in sorted(_zfdit.values(),key=lambda x:x[1],reverse=True)]
     zfranklist = [j for (i,j) in enumerate(zfranklist) if j[1] >= x and len(DataAPI.MktEqudAdjGet(endDate=_tradedate,ticker=j[0],isOpen='1',pandas='1'))>howlong]
     return zfranklist
-#zfrankin(10,'20170101','20170210',['000877.XSHE','000001.XSHE'],x=0.1)
+#zfrankin(20,'20170101','20170218',['000877.XSHE','000885.XSHE'],x=0.1)

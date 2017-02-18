@@ -18,6 +18,40 @@ def format_date(x,pos=None):
     thisind = np.clip(int(x+0.5), 0, len(dfquotes[u'tradeDate'][_tickerstart:])-1)
     return dfquotes[u'tradeDate'][_tickerstart:].iloc[thisind]
 
+def plot_volume_overlay(ax,_dfquotes,begin,_locatormulti=40):
+    """
+    plot volume bar with m5,10 line
+    Args:
+        _dfquotes (dataframe): the seurity dataframe which include'openPrice''closePrice''turnoverVol''tradeDate'
+        ax : matplotlib ax object
+        begin : the index of first volume bar, _dfquotes[begin:] will be plot
+        _locatormulti (int): adjust the axis's ticker display interval
+    Returns:
+        lineandbars : return volume_overlay's lineandbars objects
+
+    Examples:
+        >> 
+    """
+    global _tickerstart
+    global dfquotes
+    dfquotes = _dfquotes
+    _tickerstart = begin
+    lineandbars = maf.volume_overlay(ax,dfquotes[u'openPrice'][_tickerstart:].values,\
+                          dfquotes[u'closePrice'][_tickerstart:].values,\
+                          dfquotes[u'turnoverVol'][_tickerstart:].values,\
+                          colorup='r',colordown='g',width=0.5,alpha=1.0)
+    lineandbars.set_edgecolor(lineandbars.get_facecolor())
+    _multilocator = int((len(dfquotes)-_tickerstart)/_locatormulti)#超过40个交易日，日期刻度单位加一天
+    ax.xaxis.set_major_locator(MultipleLocator(1+_multilocator))
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
+    plt.gcf().autofmt_xdate()
+    _doublelist = [float(x) for x in dfquotes[u'turnoverVol'].values]
+    _doublenparray = np.array(_doublelist)
+    plotEMA([5,10],_doublenparray,_tickerstart)
+    for label in ax.xaxis.get_ticklabels():
+        label.set_rotation(90)
+    return lineandbars
+
 def plot_security_k(ax,_dfquotes,begin,_locatormulti=40):
     """
     plot k graph with ma5,10,20,30 line
@@ -71,12 +105,21 @@ def plotEMA(malist,closearray,startticker):
     for _das in malist:
         _ema = talib.EMA(closearray,timeperiod=_das)
         plt.plot(_ema[startticker:],linecolor(malist.index(_das)))
-"""    
-fig,ax = plt.subplots()
-gdfquotes = DataAPI.MktEqudAdjGet(ticker='600984',endDate='20170212',field=['tradeDate','openPrice','highestPrice','lowestPrice','closePrice'],isOpen=1)
-plot_security_k(ax,gdfquotes,1000)
+''' 
+fig = plt.figure(figsize=(8,6))
+gs = gridspec.GridSpec(2,1,height_ratios=[4,1])
+ax = plt.subplot(gs[0])
+gs.update(left=0.05, right=0.48, hspace=0.0)
+ax1 = plt.subplot(gs[1])
+#fig,ax = plt.subplots()
+gdfquotes = DataAPI.MktEqudAdjGet(ticker='600984',beginDate='20161101',endDate='20170218',field=['tradeDate','openPrice','highestPrice','lowestPrice','closePrice','turnoverVol'],isOpen=1)
+fig.sca(ax)
+plot_security_k(ax,gdfquotes,30)
+fig.sca(ax1)
+plot_volume_overlay(ax1,gdfquotes,30)
+ax1.yaxis.set_visible(False)
 plt.show()
-"""
+'''
 def format_percentage(y,pos=None):
     global dfquotes
     return mymath.rod(y/dfquotes['closePrice'].iloc[-1]-1,3)
