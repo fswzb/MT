@@ -1,3 +1,4 @@
+import lib.selstock as xg
 reload(xg)
 from CAL.PyCAL import font
 import matplotlib.pyplot as plt
