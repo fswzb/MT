@@ -68,6 +68,9 @@ change log
     c）start/end 统计时间段
 4.输出龙回头模拟交易XXX.xlsx
 '''
+from CAL.PyCAL import font
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
 import time
 import quartz
 from quartz.api import *
@@ -78,9 +81,9 @@ from matplotlib import pylab
 import copy
 import talib
 import lib.mymath
-import lib.selstock
+import lib.selstock as xg
 reload(lib.mymath)
-reload(lib.selstock)
+reload(xg)
 g_EMA = True
 g_security_return_value = ['T+%dOdds','T+%dRet','T+%d MaxProfit','T+%dMaxLose','T+%dOpenret' ,'T+%dCloseret']
 g_head_indexs = ['tradedate','secID','tradeprice']
@@ -95,7 +98,7 @@ g_security_history = {}
 g_currnetdate = ''
 g_previousdate = ''
 now = time.strftime('%Y%m%d')
-start = '20161230'  # 回测起始时间
+start = '20160101'  # 回测起始时间
 end = now   # 回测结束时间
 benchmark = 'HS300'    # 参考标准
 universe = DynamicUniverse('A').apply_filter(Factor.VOL10.nlarge(_numcandidate))#&Factor.REVS10.nlarge(_numcandiate)) #set_universe('A') # 证券池，支持股票和基金
@@ -107,7 +110,7 @@ if freq == 'm':
 else:
     g_ifreq = 1
 g_imaxback = 5 #最大回测天数 T+imaxback后的收益
-g_targetprice = 4#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
+g_targetprice = 3#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
 
 def get_week_day(date):
     week_day_dict={0:'星期一',1:'星期二',2:'星期三',3:'星期四',4:'星期五',5:'星期六',6:'星期天'}
@@ -150,7 +153,11 @@ def canbuy(s,targetprice,date):
             break
         _i = _i - 1
     data = DataAPI.MktEqudAdjGet(beginDate=_lastdate,endDate=date,secID=s,isOpen=1,pandas='1')
-    if (len(data) >= g_imaxback+2 or len(data) ==1) and data['lowestPrice'].iloc[-1] <= targetprice:
+    #停牌
+    if len(data) == 0 or data['tradeDate'].iloc[-1].replace('-','').find(date) < 0:
+        return False
+    #最近几天没有买且股价满足条件
+    if (len(data) >= g_imaxback+2 or _i == 0) and data['lowestPrice'].iloc[-1] <= targetprice:
         return True
     return False
 
@@ -178,7 +185,6 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
         g_currentdate = account.current_date.strftime('%Y%m%d')
         g_previousdate = account.previous_date.strftime('%Y%m%d')
         print '%s %s' %(g_currentdate,get_week_day(g_currentdate))
-        g_candidates = lib.selstock.findcandidate(account.universe,g_previousdate,g_targetprice,0.5,7,g_EMA)
         #try to buy the candidates
         for s,v in g_candidates.items():
             targetprice = v[g_targetprice]
@@ -189,8 +195,6 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
                     _val.append(0.)
                     i = i - 1
                 g_security_history[len(g_security_history)] = _val
-        #if g_currentdate[-2:].find('01')>=0 or g_currentdate[-2:].find('15')>=0:#every month
-        print 'security_history %s' %g_security_history
         
     #量化收益 T+n，假设手里的股票分成240份，每分钟卖出一份。1.当天卖出的盈利概率 2.当天卖出的盈利百分比 
     i = len(g_security_history) - 1
@@ -231,8 +235,12 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
             g_security_history[0][interval+3]=g_security_history[0][interval+3] + v[interval+3]
             g_security_history[0][interval+4]=g_security_history[0][interval+4] + v[interval+4]
             g_security_history[0][interval+5]=g_security_history[0][interval+5] + v[interval+5]
-    
         i = i - 1
+    if account.current_minute.find('14:59')>=0:
+        g_candidates.clear()
+        g_candidates = xg.findcandidate(account.universe,g_currentdate,g_targetprice,0.5,7,g_EMA,_enableprint=False)
+        print 'security_history %s' %g_security_history
+        print 'tomorrow candidate %s'%[k[:6] for k,v in g_candidates.items()]
     return
 def continuefrom(filename):
     excel = pd.read_excel(filename)
@@ -241,26 +249,54 @@ def continuefrom(filename):
         g_security_history[_i] = excel.iloc[_i].tolist()
         _i=_i+1
     return excel['tradedate'].iloc[-1]
+
+def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initialize,_handle_data,_refresh_rate,_freq):
+    bt, perf =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,capital_base = _capital_base,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq)
+    indexs = copy.copy(g_head_indexs)
+    i = 1
+    while i <= g_imaxback:
+        #make the table title
+        added = [x %(i) for x in g_security_return_value]
+        indexs = indexs + added
+        i = i + 1
+    data = pd.DataFrame.from_dict(data= g_security_history,orient='index')
+    if g_EMA:
+        data.to_excel('龙回头模拟交易%s-%s-EMA-%d.xlsx' %(start,_end,g_targetprice),header=indexs)  
+    else:
+        data.to_excel('龙回头模拟交易%s-%s-%d.xlsx' %(start,_end,g_targetprice),header=indexs)  
+    cansfiltered = {}
+    for k,v in g_candidates.iteritems():#filter the candidates already bought before
+        if canbuy(k,99999999.,_end):
+            cansfiltered[k]=v
+    g_security_history.clear()
+    return cansfiltered
+    pass
+
+def plot_candidate(s,lines):
+    fig = plt.figure(figsize=(8,6))
+    gs = gridspec.GridSpec(2,1,height_ratios=[4,1])
+    _ax1 = plt.subplot(gs[0])
+    gs.update(left=0.05, right=0.48, hspace=0.0)
+    ax1 = plt.subplot(gs[1])
+    _gdfquotes = DataAPI.MktEqudAdjGet(ticker=s,endDate=now,field=[u'secShortName','tradeDate','openPrice','highestPrice','lowestPrice','closePrice','turnoverVol'],isOpen=1)
+    _beginindex = max(len(_gdfquotes)-60,0)
+    print _gdfquotes[u'secShortName'].iloc[-1],v[0]
+    _ax1.set_title(u'%s'%(k[:6]),fontproperties=font,fontsize='16')
+    fig.sca(_ax1)
+    xg.plot_dragonpoint(_ax1,_gdfquotes,_beginindex,lines,60) 
+    #成交量
+    fig.sca(ax1)
+    xg.plot_volume_overlay(ax1,_gdfquotes,_beginindex)
+    ax1.yaxis.set_visible(False)
+    plt.show()
+
+start='20170101'
 continueday = start
-#continueday = someday(continuefrom('龙回头模拟交易20161230-20170208-EMA-1.xlsx'),1)
 #print continueday
-continueday='20170208'
-end='20170208'
-bt, perf =  quartz.backtest(start = continueday,end = end,benchmark = benchmark,universe = universe,capital_base = capital_base,initialize = initialize,handle_data = handle_data,refresh_rate = refresh_rate,freq = freq)
-
-indexs = copy.copy(g_head_indexs)
-i = 1
-while i <= g_imaxback:
-    #make the table title
-    added = [x %(i) for x in g_security_return_value]
-    indexs = indexs + added
-    i = i + 1
-data = pd.DataFrame.from_dict(data= g_security_history,orient='index')
-if g_EMA:
-    data.to_excel('龙回头模拟交易%s-%s-EMA-%d.xlsx' %(start,end,g_targetprice),header=indexs)  
-else:
-    data.to_excel('龙回头模拟交易%s-%s-%d.xlsx' %(start,end,g_targetprice),header=indexs)  
-
-perf['cumulative_returns'].plot()
-perf['benchmark_cumulative_returns'].plot()
-pylab.legend(['current_strategy', 'HS300'])
+end=now
+for i in range(3,5):
+    g_targetprice = i
+    g_candidates.clear()
+    _list = (startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
+    for k,v in _list.iteritems():
+        plot_candidate(k[:6],v[1:])
