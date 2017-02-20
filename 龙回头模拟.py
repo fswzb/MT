@@ -295,6 +295,7 @@ continueday = start
 #print continueday
 end=now
 for i in range(3,5):
+    #continueday = someday(continuefrom('龙回头模拟交易20170101-20170218-EMA-%d.xlsx'%i),0)
     g_targetprice = i
     g_candidates.clear()
     _list = (startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
