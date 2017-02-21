@@ -150,10 +150,16 @@ def plot_dragonpoint(ax1,_dfquotes,beginindex,targetprices,_imulti=40):
     x1 = range(0,len(gdfquotes)-beginindex+1,len(gdfquotes)-beginindex)
     for _p in targetprices:
         y1 = [_p for n in x1]
-        ax1.plot(x1,y1,'b-')
-        ax1.text(targetprices.index(_p)*3,_p,'%.2f(%.2f%%)'%(mymath.rod(_p,2),mymath.rod(_p/_zero-1,2)*100),rotation=90,va='bottom')
+        _percen = mymath.rod(_p/_zero-1,2)*100
+        if _percen < 0 and _percen > -15:
+            ax1.plot(x1,y1,'m--')
+            ax1.text(targetprices.index(_p)*3,_p,'%.2f(%.2f%%)'%(mymath.rod(_p,2),_percen),rotation=90,va='bottom',color='m')
+        else:
+            ax1.plot(x1,y1,'b-')
+            ax1.text(targetprices.index(_p)*3,_p,'%.2f(%.2f%%)'%(mymath.rod(_p,2),_percen),rotation=90,va='bottom')
         plt.minorticks_on()
     pass
+
 '''
 _gdfquotes = DataAPI.MktEqudAdjGet(ticker='000877',endDate='20170218',field=['tradeDate','openPrice','highestPrice','lowestPrice','closePrice'],isOpen=1)
 _beginindex = max(len(_gdfquotes)-60,0)
@@ -201,7 +207,7 @@ def ztcs(data):
             break
     return zt
 #target 1，3，5对应黄金分割0.809，0.618，0.5选股。2，4，6对应5日10日20日均线选股
-def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlong=60):
+def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlong=60,_enableprint=True):
     """
     选龙回头标的股
     Args:
@@ -291,6 +297,7 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
                      value = ["(Norm)",golden8,_ma5,golden618,_ma10,golden5,_ma20]
                 cl = s[0:6]+_shis['secShortName'][0]
                 stocks[s] = value
-                print '%s : %s' %(cl,value)
+                if _enableprint:
+                    print '%s : %s' %(cl,value)
     return stocks
 #findcandidate(['002651.XSHE','002300.XSHE'],'20170208',4)
