@@ -143,7 +143,7 @@ def someday(_tradedate,howlong):
 #   b) T day(currentdate)'s lowest price below targetprice,
 #   c) not bought before g_imaxback day 
 # then we can buy the stock
-def canbuy(s,targetprice,date,interval=g_imaxbaxback):
+def canbuy(s,targetprice,date,interval=g_imaxback):
     _lastdate = date
     _i = len(g_security_history)-1
     while _i > 0:
