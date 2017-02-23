@@ -143,7 +143,7 @@ def someday(_tradedate,howlong):
 #   b) T day(currentdate)'s lowest price below targetprice,
 #   c) not bought before g_imaxback day 
 # then we can buy the stock
-def canbuy(s,targetprice,date):
+def canbuy(s,targetprice,date,interval=g_imaxbaxback):
     _lastdate = date
     _i = len(g_security_history)-1
     while _i > 0:
@@ -157,7 +157,7 @@ def canbuy(s,targetprice,date):
     if len(data) == 0 or data['tradeDate'].iloc[-1].replace('-','').find(date) < 0:
         return False
     #最近几天没有买且股价满足条件
-    if (len(data) >= g_imaxback+2 or _i == 0) and data['lowestPrice'].iloc[-1] <= targetprice:
+    if (len(data) >= interval or _i == 0) and data['lowestPrice'].iloc[-1] <= targetprice:
         return True
     return False
 
@@ -188,7 +188,7 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
         #try to buy the candidates
         for s,v in g_candidates.items():
             targetprice = v[g_targetprice]
-            if canbuy(s,targetprice,g_currentdate):
+            if canbuy(s,targetprice,g_currentdate,g_imaxback+2):
                 _val =[g_currentdate,s,min(targetprice,account.reference_price[s])]
                 i = len(g_security_return_value)*g_imaxback
                 while i > 0:
@@ -276,7 +276,7 @@ def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initiali
         data.to_excel('龙回头模拟交易%s-%s-%d.xlsx' %(start,_end,g_targetprice),header=indexs)  
     cansfiltered = {}
     for k,v in g_candidates.iteritems():#filter the candidates already bought before
-        if canbuy(k,99999999.,_end):
+        if canbuy(k,99999999.,_end,g_imaxback+1):
             cansfiltered[k]=v
     g_security_history.clear()
     return cansfiltered
