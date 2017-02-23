@@ -216,8 +216,18 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
             break
         #T-i日买入的股票当天收益
         interval = len(g_security_return_value)*(g_difflist[i]-1)+len(g_head_indexs)
+        #first reset
+        if account.current_minute.find('09:30') >= 0:
+            g_security_history[0][interval]=g_security_history[0][interval] - v[interval]
+            g_security_history[0][interval+1]=g_security_history[0][interval+1] - v[interval+1]
+            g_security_history[0][interval+2]=g_security_history[0][interval+2] - v[interval+2]
+            g_security_history[0][interval+3]=g_security_history[0][interval+3] - v[interval+3]
+            g_security_history[0][interval+4]=g_security_history[0][interval+4] - v[interval+4]
+            g_security_history[0][interval+5]=g_security_history[0][interval+5] - v[interval+5]
+            v[interval] = 0.
+            v[interval+1] = 0.
         if account.reference_price[v[1]] > v[2]:
-            v[interval] = v[interval]+1
+            v[interval] = v[interval]+1.
         v[interval+1] = account.reference_price[v[1]]/v[2]-1 + v[interval+1]
 
         #at the end of a day, caculate the result
@@ -273,7 +283,7 @@ def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initiali
     pass
 
 def plot_candidate(s,lines):
-    fig = plt.figure(figsize=(8,6))
+    fig = plt.figure(figsize=(12,9))
     gs = gridspec.GridSpec(2,1,height_ratios=[4,1])
     _ax1 = plt.subplot(gs[0])
     gs.update(left=0.05, right=0.48, hspace=0.0)
@@ -295,7 +305,7 @@ continueday = start
 #print continueday
 end=now
 for i in range(1,7):
-    continueday = someday(continuefrom('龙回头模拟交易20170101-20170221-EMA-%d.xlsx'%i),0)
+    continueday = someday(continuefrom('龙回头模拟交易20170101-20170222-EMA-%d.xlsx'%i),0)
     g_targetprice = i
     g_candidates.clear()
     _list = (startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
