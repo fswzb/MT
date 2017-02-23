@@ -56,22 +56,29 @@ def filter_trans(filename):
 def plot_security_his(data,security_name):
     security = data[data['ticker']==security_name]
     #reset figure for plot
-    fig = plt.figure(figsize=(8,6))
-    gs = gridspec.GridSpec(1,2,width_ratios=[3,1])
-    ax0 = plt.subplot(gs[0])
-    ax1 = plt.subplot(gs[1])
+    fig = plt.figure(figsize=(12,9))
+    gs = gridspec.GridSpec(2,2,height_ratios=[4,1],width_ratios=[3,1])
+    gs.update(hspace=0.0)
+    ax0 = plt.subplot(gs[0,0])
+    ax2 = plt.subplot(gs[1,0])
+    ax1 = plt.subplot(gs[:,1])
     plt.sca(ax0)
     plt.cla()
     #plot title
     ax0.set_title(u'%s%s 回报%f'%(security_name,security['name'].iloc[0],security['amount'].sum()),fontproperties=font,fontsize='16')
     #plot candlestick graph
-    _dfquotes = mktgethis(security_name,someday(str(security['tradeDate'].iloc[0]),-365),someday(str(security['tradeDate'].iloc[-1]),2),[u'tradeDate',u'openPrice',u'highestPrice',u'lowestPrice',u'closePrice'])
+    _dfquotes = mktgethis(security_name,someday(str(security['tradeDate'].iloc[0]),-365),someday(str(security['tradeDate'].iloc[-1]),3),[u'tradeDate',u'openPrice',u'highestPrice',u'lowestPrice',u'closePrice',u'turnoverVol'])
     beginx=0
     _period =[(x.replace('-','')) for x in _dfquotes['tradeDate']]
     beginx = _period.index(str(security['tradeDate'].iloc[0]))
     beginx = max(beginx-20,0)
     xg.plot_security_k(ax0,_dfquotes,beginx)
     plotbsp(_period[beginx:],security)
+    plt.grid()
+    #成交量
+    fig.sca(ax2)
+    xg.plot_volume_overlay(ax2,_dfquotes,beginx)
+    ax2.yaxis.set_visible(False)
     plt.grid() 
     plottranlog(ax1,security)
     plt.tight_layout()#to avoid the axis label is cut
@@ -110,7 +117,7 @@ def plottranlog(ax1,security):
             _tsbuy = 0
             _tsamount = 0
     
-    ax1.text(-2,10,_tstr,fontsize=8,ha='left',va='top')
+    ax1.text(0,10,_tstr,fontsize=8,ha='left',va='top')
     ax1.set_axis_off()
     return
 
@@ -122,7 +129,6 @@ def analytictrans(filelist):
     #iterate the stock id and all set to right format.
     for i in _dataset['ticker'].index:
         _dataset.set_value(i,'ticker',(6-len(str(_dataset['ticker'][i])))*'0'+str(_dataset['ticker'][i])) 
-    _dataset.to_excel('test.xlsx')
     #make unique stock set
     security_list = _dataset.sort_values(['amount'])['ticker'].values
     security_set = []
@@ -137,4 +143,5 @@ def analytictrans(filelist):
     #plot_security_his(_dataset,'600984')    
     return
 
+#analytictrans(['test.xlsx'])
 analytictrans(['20160204-0726.xlsx','20160727.xlsx','20160101-0725xy.xlsx','20160726xy.xlsx'])
