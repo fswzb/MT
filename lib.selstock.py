@@ -173,12 +173,12 @@ ma20f=20./19
 # period 涨幅连续统计时间，change，涨幅标准, return true or false, and how long after the max
 def continueup(dataturnover,datalowest,datahighest,period,change):
     _ret = False
-    _count = _highest = 0
-    _lowest = 9999999
     _len = len(dataturnover)
     _start = _len-1
     while _ret == False and _start-period >=0:
         _reverseindexs = range(_start,_start-period,-1)
+        _count = _highest = 0
+        _lowest = 9999999
         for _ir in _reverseindexs:
             if datahighest.iloc[_ir] > _highest:
                 _highest = datahighest.iloc[_ir]
