@@ -1,8 +1,13 @@
+from CAL.PyCAL import font
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
 from datetime import datetime
 import time
 import pandas as pd
 import lib.mymath
 import lib.marketsummary as msum
+import lib.selstock as xg
+reload(xg)
 reload(msum)
 reload(lib.mymath)
 # 开启缓存，当前Notebook所有DataAPI数据都会缓存
@@ -124,14 +129,31 @@ def dailyfp(now,t1ztdic):
 #main()
 from collections import deque
 gc2rank = deque(maxlen=300)
-_begindate = '20170207'
-_his = DataAPI.MktIdxdGet(beginDate=_begindate,endDate=now,field='tradeDate',indexID='399317.ZICN')
+_his = DataAPI.MktIdxdGet(endDate=now,field=[u'secShortName','tradeDate','openIndex','highestIndex','lowestIndex','closeIndex','turnoverVol'],indexID='399317.ZICN')
+_startIndex = 20#最近10个交易日
 _T1ztdic={}
-for _date in _his['tradeDate'].values:
+for _date in _his['tradeDate'][-_startIndex:].values:
     _date = _date.replace('-','')
     _lxztlist,_T1ztdic = dailyfp(_date,_T1ztdic)
     for _e in _lxztlist:
         gc2rank.append(_e)
     _temp = msum.zfrankin(20,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
     print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100),'%.2f%%'%(round(x[2],3)*100)],_temp))
+
+fig = plt.figure(figsize=(12,9))
+fig.set_size_inches(24,18)
+gs = gridspec.GridSpec(2,1,height_ratios=[4,1])
+_ax1 = plt.subplot(gs[0])
+gs.update(left=0.05, right=0.48, hspace=0.0)
+ax1 = plt.subplot(gs[1])
+_his.columns =[u'secShortName','tradeDate','openPrice','highestPrice','lowestPrice','closePrice','turnoverVol']
+_beginindex = max(len(_his)-120,0)
+#_ax1.set_title('%s'%(_his['secShortName'].iloc[-1]),fontproperties=font,fontsize='16')
+fig.sca(_ax1)
+xg.plot_security_k(_ax1,_his,_beginindex,60) 
+#成交量
+fig.sca(ax1)
+xg.plot_volume_overlay(ax1,_his,_beginindex)
+ax1.yaxis.set_visible(False)
+plt.show()
 
