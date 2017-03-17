@@ -20,7 +20,7 @@ def Market(before,now,inID):
     count = len(data['closeIndex'])
     print data['tradeDate'].iloc[-1],
     print get_week_day(data['tradeDate'].iloc[-1])
-    print "成交量%.1f(%.1f)"%((data['turnoverValue'].iloc[-1]/100000000.),((data['turnoverValue'].iloc[-1] - data['turnoverValue'].iloc[-2])/100000000.))\
+    print "成交量%.1f(%.1f)5日平均%.1f"%((data['turnoverValue'].iloc[-1]/100000000.),((data['turnoverValue'].iloc[-1] - data['turnoverValue'].iloc[-2])/100000000.),(data['turnoverValue'][-5:].mean()/100000000.))\
     , "  30日均线:%.2f%%"%((data['closeIndex'].iloc[-1]/data['closeIndex'][count-30:count].mean()-1)*100)
     pass
 
@@ -144,8 +144,7 @@ for _date in _his['tradeDate'][-_startIndex:].values:
 
 #export excel
 templist = _T1ztdic.keys()+_T1dtdic.keys()
-ticklist =[e[:6] for e in templist]
-df = DataAPI.MktEqudAdjGet(beginDate=_his['tradeDate'].iloc[-1],endDate=_his['tradeDate'].iloc[-1],ticker=ticklist,field=['tradeDate','ticker','secID','secShortName'])
+df = DataAPI.MktEqudAdjGet(beginDate=_his['tradeDate'].iloc[-1],endDate=_his['tradeDate'].iloc[-1],secID=templist,field=['tradeDate','ticker','secID','secShortName'])
 df[u'涨跌停次数']=range(0,len(df))
 for i in df.index:
     if _T1ztdic.has_key(df['secID'][i]):
