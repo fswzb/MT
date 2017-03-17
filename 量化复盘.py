@@ -125,21 +125,45 @@ def dailyfp(now,t1ztdic):
     if len(t1ztdic) != 0:
         _T1ztret,_T1ztchance = yesterdayztret(t1ztdic,_date)#昨日涨停赚钱效应
         print "昨日涨停赚钱概率%.2f%%(收益%.2f%%)"%(round(_T1ztchance,3)*100,round(_T1ztret,3)*100)
-    return [_e[0] for _e in _retlxzt],_Tztdic
-#main()
+    return [_e[0] for _e in _retlxzt],_Tztdic,_Tdtdic
+
+
 from collections import deque
 gc2rank = deque(maxlen=300)
 _his = DataAPI.MktIdxdGet(endDate=now,field=[u'secShortName','tradeDate','openIndex','highestIndex','lowestIndex','closeIndex','turnoverVol'],indexID='399317.ZICN')
-_startIndex = 20#最近10个交易日
+_startIndex = 1#最近10个交易日
 _T1ztdic={}
+_T1dtdic={}
 for _date in _his['tradeDate'][-_startIndex:].values:
     _date = _date.replace('-','')
-    _lxztlist,_T1ztdic = dailyfp(_date,_T1ztdic)
+    _lxztlist,_T1ztdic,_T1dtdic = dailyfp(_date,_T1ztdic)
     for _e in _lxztlist:
         gc2rank.append(_e)
     _temp = msum.zfrankin(20,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
     print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100),'%.2f%%'%(round(x[2],3)*100)],_temp))
 
+#export excel
+templist = _T1ztdic.keys()+_T1dtdic.keys()
+ticklist =[e[:6] for e in templist]
+df = DataAPI.MktEqudAdjGet(beginDate=_his['tradeDate'].iloc[-1],endDate=_his['tradeDate'].iloc[-1],ticker=ticklist,field=['tradeDate','ticker','secID','secShortName'])
+df[u'涨跌停次数']=range(0,len(df))
+for i in df.index:
+    if _T1ztdic.has_key(df['secID'][i]):
+        dic = msum.lxztordt([df['secID'][i]],_his['tradeDate'].iloc[-1])
+        if len(dic) == 1:
+            df[u'涨跌停次数'][i]= dic.keys()[0]
+        else:
+            df[u'涨跌停次数'][i]= 1
+    elif _T1dtdic.has_key(df['secID'][i]):
+        dic = msum.lxztordt([df['secID'][i]],_his['tradeDate'].iloc[-1],False)
+        if len(dic) == 1:
+            df[u'涨跌停次数'][i]= -dic.keys()[0]
+        else:
+            df[u'涨跌停次数'][i]= -1
+del df['secID']
+df.to_excel('dailyreview.xlsx')
+
+#plot da pang K线图
 fig = plt.figure(figsize=(12,9))
 fig.set_size_inches(24,18)
 gs = gridspec.GridSpec(2,1,height_ratios=[4,1])
