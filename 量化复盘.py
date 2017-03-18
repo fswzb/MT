@@ -12,6 +12,7 @@ reload(msum)
 reload(lib.mymath)
 # 开启缓存，当前Notebook所有DataAPI数据都会缓存
 DataAPI.settings.cache_enabled = True
+
 _oneday = 24*60*60
 _numcandidate=128
 now = time.strftime('%Y%m%d')
@@ -144,7 +145,7 @@ for _date in _his['tradeDate'][-_startIndex:].values:
 
 #export excel
 templist = _T1ztdic.keys()+_T1dtdic.keys()
-df = DataAPI.MktEqudAdjGet(beginDate=_his['tradeDate'].iloc[-1],endDate=_his['tradeDate'].iloc[-1],secID=templist,field=['tradeDate','ticker','secID','secShortName'])
+df = DataAPI.MktEqudAdjGet(beginDate=_his['tradeDate'].iloc[-1],endDate=_his['tradeDate'].iloc[-1],secID=templist,field=['tradeDate','ticker','secID','secShortName','highestPrice'])
 df[u'涨跌停次数']=range(0,len(df))
 for i in df.index:
     if _T1ztdic.has_key(df['secID'][i]):
@@ -159,6 +160,49 @@ for i in df.index:
             df[u'涨跌停次数'][i]= -dic.keys()[0]
         else:
             df[u'涨跌停次数'][i]= -1
+
+start = '2014-01-01'                       # 回测起始时间
+end = '2015-01-01'                         # 回测结束时间
+benchmark = 'HS300'                        # 策略参考标准
+universe = set_universe('A')  # 证券池，支持股票和基金
+capital_base = 100000                      # 起始资金
+freq = 'm'                                 # 策略类型，'d'表示日间策略使用日线回测，'m'表示日内策略使用分钟线回测
+refresh_rate = 1                           # 调仓频率，表示执行handle_data的时间间隔，若freq = 'd'时间间隔的单位为交易日，若freq = 'm'时间间隔为分钟
+ticks = 0
+g_ifreq = 240
+firstzt=range(0,len(df))
+lastzt=range(0,len(df))
+kbnumber=range(0,len(df))
+kb=range(0,len(df))
+def initialize(account):                   # 初始化虚拟账户状态
+    pass
+
+def handle_data(account):                  # 每个交易日的买入卖出指令
+    global ticks
+    ticks = ticks%g_ifreq
+    ticks = ticks+1
+    for i in df.index:
+        if ticks == 1:
+            firstzt[i] = ''
+            lastzt[i] = ''
+            kbnumber[i] = 0
+            kb[i] = False
+        if account.reference_price[df['secID'][i]] != df['highestPrice'][i]:
+            kb[i] = False
+        elif kb[i] == False:
+            kb[i] = True
+            kbnumber[i] = kbnumber[i] + 1
+            lastzt[i] = account.current_minute
+            if len(firstzt[i]) == 0:
+                firstzt[i] = lastzt[i]
+                kbnumber[i] = 0
+    return
+bt, perf =  quartz.backtest(start = _his['tradeDate'].iloc[-1],end = _his['tradeDate'].iloc[-1],benchmark = benchmark,universe = universe,capital_base = capital_base,initialize = initialize,handle_data = handle_data,refresh_rate = refresh_rate,freq = freq)
+cols = []
+for i in range(0,len(df)):
+    cols.append('%s封板开板%i次%s封死'%(firstzt[i],kbnumber[i],lastzt[i]))
+df[u'涨跌停时间']=cols
+del df['highestPrice']
 del df['secID']
 df.to_excel('dailyreview.xlsx')
 
