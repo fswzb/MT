@@ -3,12 +3,13 @@ from fractions import Fraction
 import numpy
 import pandas as pd
 import talib
-g_EMA=True
-_oneday = 24*60*60
-g_filterma = 30
-now = time.strftime('%Y%m%d')
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from matplotlib.ticker import MultipleLocator
+import lib.mymath as mymath
+reload(mymath)
 def convertdicttoexcel():
-    security_history=  {0: ['tradedate', 'secID', 'tradeprice-1', 0.8416666666666667, 0.0002784364861057112, 0.046523752327795709, -0.10491309364294121, -0.061996032273479385, 0.021781978316555262, 0.4, -0.0014022842639593626, 0.067005076142131914, -0.048730964467005089, 0.05888324873096451, 0.012690355329949332, 0.029166666666666667, -0.012696700507614182, 0.010152284263959421, -0.040609137055837574, -0.0050761421319795996, -0.0091370558375634126, 0.05416666666666667, -0.024092639593908602, 0.019289340101522834, -0.077157360406091335, -0.020812182741116736, -0.03401015228426385, 0.0, -0.042015651438240258, -0.0050761421319795996, -0.074619289340101425, -0.049238578680202982, -0.036040609137055868], 1: ['20161230', '600099.XSHG', 19.699999999999999, 0.8416666666666667, 0.035587986463621164, 0.056852791878172715, -0.043147208121827263, -0.036040609137055868, 0.056852791878172715, 0.4, -0.0014022842639593626, 0.067005076142131914, -0.048730964467005089, 0.05888324873096451, 0.012690355329949332, 0.029166666666666667, -0.012696700507614182, 0.010152284263959421, -0.040609137055837574, -0.0050761421319795996, -0.0091370558375634126, 0.05416666666666667, -0.024092639593908602, 0.019289340101522834, -0.077157360406091335, -0.020812182741116736, -0.03401015228426385, 0.0, -0.042015651438240258, -0.0050761421319795996, -0.074619289340101425, -0.049238578680202982, -0.036040609137055868]}
+    security_history= {}
     indexs = security_history[0][:3]
     i = 1
     while i <= 5:
@@ -17,114 +18,88 @@ def convertdicttoexcel():
         indexs = indexs + added
         i = i + 1
     tradedates = [v[0] for k,v in security_history.items()]
+    print security_history
+    print tradedates[1],tradedates[-1],indexs[2][-1]
     data = pd.DataFrame.from_dict(data= security_history,orient='index')
-    data.to_excel('龙回头模拟交易%s-%s-%s.xlsx'%(tradedates[1],tradedates[-1],indexs[2][-1]),header=indexs) 
+    data.to_excel(u'龙回头模拟交易%s-%s-%s.xlsx'%(tradedates[1],tradedates[-1],indexs[2][-1]),header=indexs) 
     pass
 #convertdicttoexcel()
-def someday(_tradedate,howlong):
-    _tradedate = time.mktime(time.strptime(_tradedate,'%Y%m%d'))+howlong*_oneday
-    _tradedate = time.localtime(_tradedate)
-    _tradedate = time.strftime('%Y%m%d',_tradedate)
-    return _tradedate   
-
-def CantBuy(data,i):
-    if g_filterma == 0:
-        return False
-    if data['filterma%d' %g_filterma].iloc[i] == -321:
-        return True
-    elif data['filterma%d' %g_filterma].iloc[i] == -123:
-        return False
-    _date = data['tradedate'].iloc[i]
-    _start = someday(_date,-100)
-    _data = []
-    _man10=_man20=_man30=0
-    if g_EMA:
-        _data = DataAPI.MktIdxdGet(endDate=someday(_date,-1),indexID='399317.ZICN',field=u'',pandas='1')
-        _man_30 = talib.EMA(_data['closeIndex'].values,timeperiod=30)[-1]
-        _man_10 =  talib.EMA(_data['closeIndex'].values,timeperiod=10)[-1]
-        _man_20 =  talib.EMA(_data['closeIndex'].values,timeperiod=20)[-1]
-    else:
-        _data = DataAPI.MktIdxdGet(beginDate=_start,endDate=someday(_date,-1),indexID='399317.ZICN',field=u'',pandas='1')
-        _man_30 = _data['closeIndex'][-30:].mean()
-        _man_10 = _data['closeIndex'][-10:].mean()
-        _man_20 = _data['closeIndex'][-20:].mean()
-    
-    data['filterma%d' %g_filterma][i] = -321
-    if _man_30 < _man_20 and _man_20 < _man_10:
-        data['filterma%d'%g_filterma][i] = -123 #duo tou
-        return False
-    return True
-     
-def Outputhandle(filename):
-    global Tquit
-    R=[-0.08,-0.07,-0.06,-0.05,-0.04,-0.03,-0.02,-0.01]
-    Tquit = []
-    DictRMulti = {}
-    excel = pd.read_excel(filename)
-    #add filter to excel data
-    if not 'filterma%d'%g_filterma in excel.columns:
-        excel['filterma%d' %g_filterma] = range(len(excel))
-    #excel = excel.transpose()
-    for _r in R:
-        DictRMulti[_r] = []
-    _i = 0
-    while _i < len(excel):
-        Tquit.append(False)
-        _i = _i+1
-
-    for _r in R:
-        _j = 1
-        d = 0
-        for e in range(len(Tquit)):
-            Tquit[e] = False
-        while _j <= 5:
-            a,a0,a1,b,c,d,e,f = caculateRMulti(_j,_r,excel)
-            print '初始风险%f，T+%d日平均总回报%f，最大平均回报%f，最小平均回报%f，最大回报%f，止损%f，交易次数%d,止损次数%d,赚钱交易次数%d'%(_r,_j,a,a0,a1,b,c,d,e,f)
-            DictRMulti[_r] = DictRMulti[_r] + [a,a0,a1,b,c,e,f]
-            _j = _j + 1 
-        DictRMulti[_r].insert(0,d)
-    _i = 1
-    indexs=['交易次数']
-    while _i <= 5:
-        #make the table title
-        added = ['T+%dRet' %(_i),'平均最低回报','平均最高回报','T+%dMaxProfit' %(_i),'T+%dMaxLose' %(_i),'触发停价','盈利']
-        indexs = indexs + added
-        _i = _i+1
-    data = pd.DataFrame(DictRMulti,index=indexs)
-    data.to_excel('RMulti-MA%d21-%s'%(g_filterma,filename))
-    excel.to_excel(filename)
+dateindex = []
+def format_date(x,pos=None):
+    thisind = numpy.clip(int(x+0.5), 0, len(dateindex)-1)
+    return dateindex[thisind]
+def plotret(odds,rets):
+    sum = index = 0
+    odds_his=[]
+    for x in odds:
+        sum = sum + x
+        index = index + 1.
+        odds_his.append(sum/index)
+    sum = 0
+    rets_his=[]
+    for x in rets:
+        sum = sum + x
+        rets_his.append(sum)
+    plt.figure(figsize=(12,9))
+    ax = plt.subplot()
+    oddleg, = plt.plot(odds_his,'b-',label='odds')
+    retleg, =plt.plot(rets_his,'r--',label='return')
+    ylimit = (0,max(max(rets_his),max(odds_his)))
+    ax.set_ylim(ylimit)
+    _multilocator = len(rets)/40
+    ax.xaxis.set_major_locator(MultipleLocator(1+_multilocator))
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
+    for label in ax.xaxis.get_ticklabels():
+        label.set_rotation(90)
+    plt.yticks(numpy.arange(0,ylimit[1]+0.1,0.1))
+    plt.grid()
+    plt.legend(handles=[retleg,oddleg],loc="lower right")
+    ax1 = ax.twinx()
+    ax1.set_ylim(ylimit)
+    plt.yticks(numpy.arange(0,ylimit[1]+0.1,0.1))
+    plt.show()
     pass
-def caculateRMulti(n,r,data):
-    _i = 1
-    _TnMaxLose = 0.
-    _TnMaxProfit = 0.
-    _TnRet = 0.   
-    _TnValid = 0
-    _TnStop = 0
-    _TnProfit = 0
-    _TnMinRet = 0
-    _TnMaxRet = 0
-    while _i < len(data):
-        if CantBuy(data,_i):
-            _i = _i + 1
+def filterhis(trancations,field,baverage):
+    tradedate = ''
+    retofdate = number = 0
+    his = []
+    trancations['T+0ret']=numpy.arange(0,len(trancations),1.0)
+    for i in trancations.index:
+        if i == 0:
+            tradedate=trancations['tradedate'][1]
             continue
-        _TnValid = _TnValid + 1
-        Tquit[_i] = Tquit[_i] or data['T+%dMaxLose'%n][_i] <= r
-        if Tquit[_i]:
-            _TnMaxLose = _TnMaxLose + min([r,data['T+%dRet'%n][_i]])
-            _TnStop = _TnStop + 1
-            _TnRet = _TnRet + min([r,data['T+%dRet'%n][_i]])
-            _TnMaxProfit = _TnMaxProfit + min([r,data['T+%dRet'%n][_i]])
+        closes = DataAPI.MktEqudAdjGet(secID=trancations['secID'][i],beginDate=trancations['tradedate'][i],endDate=trancations['tradedate'][i],field=['closePrice'],isOpen='1')
+        trancations['T+0ret'][i] = closes['closePrice'][0]/trancations['tradeprice'][i] - 1
+        if tradedate.find(trancations['tradedate'][i])>=0:
+            number = number + 1
+            retofdate = trancations[field][i]+retofdate
         else:
-            _TnMaxProfit = _TnMaxProfit + data['T+%d MaxProfit'%n][_i]
-            _TnRet = _TnRet + data['T+%dRet'%n][_i]
-            if data['T+%dRet'%n][_i] > 0:
-                _TnProfit = _TnProfit + 1
-        if _TnRet < _TnMinRet:
-            _TnMinRet = _TnRet
-        if _TnRet > _TnMaxRet:
-            _TnMaxRet = _TnRet
-        _i = _i + 1
-    return _TnRet,_TnMinRet,_TnMaxRet,_TnMaxProfit,_TnMaxLose,_TnValid,_TnStop,_TnProfit
-
-#Outputhandle('龙回头模拟交易20160101-20161231-1.xlsx')        
+            if baverage:
+                retofdate = retofdate/number
+                number = 1
+            his.append([tradedate,retofdate])
+            retofdate = trancations[field][i]
+            tradedate = trancations['tradedate'][i]
+    return his
+def maxdown(trans):
+    summin = 9999.
+    for i in range(0,len(trans)):
+        translice = trans[i:]
+        sum = 0.
+        for e in translice:
+            sum = sum + e
+            if sum < summin:
+                sumstartindex = i
+                summin = sum
+    return summin,sumstartindex
+    
+his_5 = pd.read_excel('龙回头模拟交易5_0.35_20160101-20170323-EMA-2.xlsx')
+list_5 = filterhis(his_5,'T+1Closeret',False)
+list_5_odds = filterhis(his_5,'T+1Odds',True)
+print len((list_5)), (list_5)
+dateindex = [e[0] for e in list_5]
+l1 = [e[1] for e in list_5]
+lodds = [e[1] for e in list_5_odds]
+f,d = maxdown(l1)
+print '最大回撤',f,list_5[d]
+plotret(lodds,l1)
