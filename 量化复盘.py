@@ -25,9 +25,6 @@ def Market(before,now,inID):
     , "  30日均线:%.2f%%"%((data['closeIndex'].iloc[-1]/data['closeIndex'][count-30:count].mean()-1)*100)
     pass
 
-def yesterday(_tradedate):
-    return someday(_tradedate,-1)
-
 def someday(_tradedate,howlong):
     _tradedate = time.mktime(time.strptime(_tradedate,'%Y%m%d'))+howlong*_oneday
     _tradedate = time.localtime(_tradedate)
@@ -132,7 +129,7 @@ def dailyfp(now,t1ztdic):
 from collections import deque
 gc2rank = deque(maxlen=300)
 _his = DataAPI.MktIdxdGet(endDate=now,field=[u'secShortName','tradeDate','openIndex','highestIndex','lowestIndex','closeIndex','turnoverVol'],indexID='399317.ZICN')
-_startIndex = 1#最近10个交易日
+_startIndex = 5#最近10个交易日
 _T1ztdic={}
 _T1dtdic={}
 for _date in _his['tradeDate'][-_startIndex:].values:
@@ -201,6 +198,7 @@ bt, perf =  quartz.backtest(start = _his['tradeDate'].iloc[-1],end = _his['trade
 cols = []
 for i in range(0,len(df)):
     cols.append('%s封板开板%i次%s封死'%(firstzt[i],kbnumber[i],lastzt[i]))
+
 df[u'涨跌停时间']=cols
 del df['highestPrice']
 del df['secID']
