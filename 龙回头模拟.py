@@ -87,7 +87,7 @@ reload(xg)
 g_EMA = True
 g_security_return_value = ['T+%dOdds','T+%dRet','T+%d MaxProfit','T+%dMaxLose','T+%dOpenret' ,'T+%dCloseret']
 g_head_indexs = ['tradedate','secID','tradeprice']
-_numcandidate=300
+_numcandidate=2000
 purchased = {}
 ma5f=5./4
 ma10f=10./9
@@ -187,7 +187,7 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
         print '%s %s' %(g_currentdate,get_week_day(g_currentdate))
         #try to buy the candidates
         for s,v in g_candidates.items():
-            targetprice = v[g_targetprice]
+            targetprice = round(v[g_targetprice],2)
             if canbuy(s,targetprice,g_currentdate,g_imaxback+2):
                 _val =[g_currentdate,s,min(targetprice,account.reference_price[s])]
                 i = len(g_security_return_value)*g_imaxback
@@ -248,9 +248,10 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
         i = i - 1
     if account.current_minute.find('14:59')>=0:
         g_candidates.clear()
-        g_candidates = xg.findcandidate(account.universe,g_currentdate,g_targetprice,0.5,7,g_EMA,_enableprint=False)
-        print 'security_history %s' %g_security_history
-        print 'tomorrow candidate %s'%[k[:6] for k,v in g_candidates.items()]
+        g_candidates = xg.findcandidate(account.universe,g_currentdate,g_targetprice,0.35,5,g_EMA,60,False,0.06)
+        print 'len%d security_history %s' %(len(g_security_history),g_security_history)
+        if len(g_candidates)>0:
+            print 'tomorrow candidate %s'%[k[:6] for k,v in g_candidates.items()]
     return
 def continuefrom(filename):
     excel = pd.read_excel(filename)
@@ -300,14 +301,16 @@ def plot_candidate(s,lines):
     ax1.yaxis.set_visible(False)
     plt.show()
 
-start='20170101'
+start='20160101'
 continueday = start
 #print continueday
 end=now
-for i in range(1,7):
-    continueday = someday(continuefrom('龙回头模拟交易20170101-20170222-EMA-%d.xlsx'%i),0)
-    g_targetprice = i
-    g_candidates.clear()
-    _list = (startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
-    for k,v in _list.iteritems():
-        plot_candidate(k[:6],v[1:])
+#for i in range(2,3):
+i = 2
+continueday = someday(continuefrom('龙回头模拟交易5_0.35_20160101-20170323-EMA-%d.xlsx'%i),0)
+continueday = '20170324'
+g_targetprice = i
+g_candidates.clear()
+_list = (startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
+for k,v in _list.iteritems():
+    plot_candidate(k[:6],v[1:])

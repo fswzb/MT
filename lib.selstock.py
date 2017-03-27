@@ -1,3 +1,5 @@
+#coding=utf-8
+
 #lib.selstock
 import pandas as pd
 import numpy as np
@@ -151,7 +153,7 @@ def plot_dragonpoint(ax1,_dfquotes,beginindex,targetprices,_imulti=40):
     for _p in targetprices:
         y1 = [_p for n in x1]
         _percen = mymath.rod(_p/_zero-1,2)*100
-        if _percen < 0 and _percen > -15:
+        if _percen < 0 and _percen > -11:
             ax1.plot(x1,y1,'m--')
             ax1.text(targetprices.index(_p)*3,_p,'%.2f(%.2f%%)'%(mymath.rod(_p,2),_percen),rotation=90,va='bottom',color='m')
         else:
@@ -207,7 +209,7 @@ def ztcs(data):
             break
     return zt
 #target 1，3，5对应黄金分割0.809，0.618，0.5选股。2，4，6对应5日10日20日均线选股
-def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlong=60,_enableprint=True):
+def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlong=60,_enableprint=True,turnrate=0.06):
     """
     选龙回头标的股
     Args:
@@ -286,6 +288,10 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
                 elif(target == 5 or target == 6):
                     _days = 20
                 if(_dam > _days ):
+                    continue
+                #turnover 
+                st = max(0,count-_dam-duration)
+                if _shis['turnoverRate'][st:count-_dam].mean() < turnrate:
                     continue
                 #check if history max
                 history = DataAPI.MktEqudAdjGet(beginDate='19991219',endDate=_previousdate,secID=s,isOpen=1,pandas='1')
