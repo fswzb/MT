@@ -1,5 +1,3 @@
-#coding=utf-8
-
 #lib.selstock
 import pandas as pd
 import numpy as np
@@ -270,7 +268,7 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
             _closep20 = MA20l[-5]
             _closep30 = MA30l[-5]
             #股价T日还在均线/golden上，T+1日可能破均线/golden,并且均线向上
-            if target == 2 and _closep10 < MA10 and MA5 < _closep and _ma5 > _closep*0.9\
+            if target == 2 and _closep10 < MA10 and MA5 < _closep and _ma5 >= _closep*0.92\
             or target == 4 and _closep20 < MA20 and MA10 < _closep and _ma10 > _closep*0.9\
             or target == 6 and _closep30 < MA30 and MA20 < _closep and _ma20 > _closep*0.9\
             or target == 1 and _closep10 < MA10 and golden8 < _closep and golden8 > _closep*0.9\
