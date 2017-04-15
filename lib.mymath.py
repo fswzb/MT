@@ -1,5 +1,3 @@
-#coding=utf-8
-
 # round函数四舍五入
 def rod(origin,n):
     rd = round(origin,n)
@@ -11,4 +9,12 @@ def rod(origin,n):
     if  diff >= 0:
         rd = rd + 1./10**n
     return round(rd,n)
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+    return False
 #rod(0.45,1)

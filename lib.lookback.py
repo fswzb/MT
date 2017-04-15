@@ -13,21 +13,10 @@ from matplotlib.ticker import MultipleLocator
 import time
 import talib
 import lib.selstock as xg
+import lib.mymath as mymath
+reload(mymath)
 reload(xg)
 g_oneday = 24*60*60
-def MktDaPan():
-    global _dptradedatelist
-    global _dpEMA
-    global _dfdp
-    _dfdp = DataAPI.MktIdxdGet(beginDate='20151001',endDate='20170126',indexID='399317.ZICN',field=['tradeDate','closeIndex'],pandas='1')
-    _dpEMA = talib.EMA(_dfdp['closeIndex'].values,timeperiod=30)
-    _dptradedatelist = list(_dfdp['tradeDate'])
-    _dptradedatelist =[(x.replace('-',''))  for x in _dptradedatelist]
-    pass
-MktDaPan()
-def dpsituationat(thisdate):
-    _inde = _dptradedatelist.index(thisdate)
-    return _dfdp['closeIndex'].iloc[_inde] > _dpEMA[_inde]
 
 def someday(_tradedate,howlong):
     _tradedate = time.mktime(time.strptime(_tradedate,'%Y%m%d'))+howlong*g_oneday
@@ -40,17 +29,31 @@ def plotbsp(_period,security):
     dates2ind = [_period.index(str(x)) for x in dates]
     prices = [x for i,x in enumerate(security['price'])  if (security['action'].iloc[i]==u'证券买入')|(security['action'].iloc[i]==u'融资买入')]
     plt.plot(dates2ind,prices,'ro')
-    dates = [x for i,x in enumerate(security['tradeDate']) if security['action'].iloc[i]==u'证券卖出']
+    dates = [x for i,x in enumerate(security['tradeDate']) if (security['action'].iloc[i]==u'证券卖出')|(security['action'].iloc[i]==u'还款卖出')]
     dates2ind = [_period.index(str(x)) for x in dates]
-    prices = [x for i,x in enumerate(security['price'])  if security['action'].iloc[i] ==u'证券卖出']
+    prices = [x for i,x in enumerate(security['price'])  if (security['action'].iloc[i]==u'证券卖出')|(security['action'].iloc[i]==u'还款卖出')]
     plt.plot(dates2ind,prices,'go')
     return
-
+def ticker_patch(tickernumber):
+    if mymath.is_number(tickernumber):
+        if tickernumber < 10:
+            return '00000'+str(tickernumber)
+        if tickernumber < 100:
+            return '0000'+str(tickernumber)
+        if tickernumber < 1000:
+            return '000'+str(tickernumber)
+        if tickernumber < 10000:
+            return '00'+str(tickernumber)
+        if tickernumber < 100000:
+            return '0'+str(tickernumber)
+    return str(tickernumber)
 def filter_trans(filename):
     data = pd.read_excel(filename)
     data = data[[u'成交日期',u'证券代码',u'证券名称',u'操作',u'成交均价',u'发生金额',u'成交数量']]
     data.columns = ['tradeDate','ticker','name','action','price','amount','volume']
-    data = data[(data['action']==u'证券买入')|(data['action']==u'证券卖出')|(data['action']==u'融资买入')]
+    tickers = [ticker_patch(v) for v in data['ticker'].values]
+    data['ticker'] = tickers
+    data = data[(data['action']==u'证券买入')|(data['action']==u'证券卖出')|(data['action']==u'融资买入')|(data['action']==u'还款卖出')]
     return data
 
 #按代码选取所有行，然后按买入，卖出切片，画出点图
@@ -107,10 +110,6 @@ def plottranlog(ax1,security):
         _tsamount = _tsamount + float(x['amount'])
         if float(x['amount']) < 0.:
             _tsbuy = _tsbuy + float(x['amount'])
-            if dpsituationat(_date):
-                _tstr = _tstr + 'OK\n'
-            else:
-                _tstr = _tstr +'BAD\n'
         if _tsvol == 0:
             _ret = -_tsamount/_tsbuy
             _tstr = _tstr + 'return:%.2f%%\n'%(_ret*100)
@@ -122,7 +121,7 @@ def plottranlog(ax1,security):
     ax1.set_axis_off()
     return
 
-def analytictrans(filelist):
+def analytictrans(filelist, _order='amount'):
     """
     分析交割单，在K线图上画出每个股票交易的买点卖点和交易日志
     Args:
@@ -142,7 +141,7 @@ def analytictrans(filelist):
     for i in _dataset['ticker'].index:
         _dataset.set_value(i,'ticker',(6-len(str(_dataset['ticker'][i])))*'0'+str(_dataset['ticker'][i])) 
     #make unique stock set
-    security_list = _dataset.sort_values(['amount'])['ticker'].values
+    security_list = _dataset.sort_values([_order])['ticker'].values
     security_set = []
     for x in security_list:
         if not x in security_set:
@@ -150,6 +149,7 @@ def analytictrans(filelist):
     print security_set
     print len(security_set)
     for stock in security_set:
+        print stock
         plot_security_his(_dataset,stock)    
     #plot_security_his(_dataset,'511880')        
     #plot_security_his(_dataset,'600984')    
@@ -182,4 +182,5 @@ def lht2lookback(filename):
     pass
 
 #lht2lookback("龙回头模拟交易_20170101-20170224-EMA-2.xlsx")
-#analytictrans(['lb龙回头模拟交易_20170101-20170224-EMA-2.xlsx'])
+#analytictrans(['lb龙回头模拟交易20160101-20170329-EMA-2.xlsx'],'tradeDate')
+#analytictrans(['1.xlsx'],'tradeDate')
