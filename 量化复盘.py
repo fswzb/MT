@@ -129,7 +129,7 @@ def dailyfp(now,t1ztdic):
 from collections import deque
 gc2rank = deque(maxlen=300)
 _his = DataAPI.MktIdxdGet(endDate=now,field=[u'secShortName','tradeDate','openIndex','highestIndex','lowestIndex','closeIndex','turnoverVol'],indexID='399317.ZICN')
-_startIndex = 5#最近10个交易日
+_startIndex = 10#最近10个交易日
 _T1ztdic={}
 _T1dtdic={}
 for _date in _his['tradeDate'][-_startIndex:].values:
@@ -137,8 +137,9 @@ for _date in _his['tradeDate'][-_startIndex:].values:
     _lxztlist,_T1ztdic,_T1dtdic = dailyfp(_date,_T1ztdic)
     for _e in _lxztlist:
         gc2rank.append(_e)
-    _temp = msum.zfrankin(20,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
-    print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100),'%.2f%%'%(round(x[2],3)*100)],_temp))
+    if len(gc2rank) != 0:
+        _temp = msum.zfrankin(20,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
+        print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100),'%.2f%%'%(round(x[2],3)*100)],_temp))
 
 #export excel
 templist = _T1ztdic.keys()+_T1dtdic.keys()
@@ -202,7 +203,8 @@ for i in range(0,len(df)):
 df[u'涨跌停时间']=cols
 del df['highestPrice']
 del df['secID']
-df.to_excel('dailyreview.xlsx')
+dfsort = df.sort_values([u'涨跌停次数', u'涨跌停时间'], ascending=[False, True])
+dfsort.to_excel('dailyreview.xlsx')
 
 #plot da pang K线图
 fig = plt.figure(figsize=(12,9))
