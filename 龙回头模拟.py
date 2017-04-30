@@ -1,73 +1,4 @@
-'''
-change log
-20170210
-1. 优化代码，把一些函数做成独立的库
 
-20170209
-1.输出文件增加target price信息
-
-20170207
-1.增加开盘价，收盘价盈利统计
-2.增加EMA均线买入标准
-
-2017-01-16
-1. xuan gu biao zhun xiu gai, li shi hui ce biao xian bu hao
-  a) 10 ri huan shou he zhang fu kao qian
-
-2017 -01-15 13:36
-1. test start 20070101, target price 1
-
-2017-01-13 21:00
-1. 150% in 7 days
-
-2017-01-13
-1.the highest price recently should be the max of an continuous up
-2.exclude the new released stock lower 90 days
-3.continue up and turnoverrate should greater 3%
-4.now we can use target price 1,3,5
-
-2017-01-11 22:26
-1.revert the last change, 买点还是只按均线。双重标准回报很低。
-
-2017-01-11 13:44
-1.买点改进。黄金分割和均线最低。
-    b）买入标准 g_targetprice，只能是2,4,6
-
-2017-01-10 13:44
-1.可以以上次生成的结果文件为起点继续运行，避免了重复,注意输入和当前模拟条件的匹配，最大回测时间，买入标准等
-   模拟前，调用 continuefrom(filename)
-
-2017-01-09 10:55
-1.修改excel输出，行列互换
-
-2017-01-08 17：49
-1.修改一个bug，因为股票当天停牌造成的错误
-
-2017-01-08 14：12
-1.增加最大收益和最大亏损统计
-
-2017-01-08 10：00
-1.T日开盘9点半首先龙回头标准选股，然后如果T日股价低于龙回头买入价格标准并且T-g_imaxback日内没有买入过则买入:
-    龙回头选股标准是：
-    候选股池是最近10天平均换手排名前600
-    a）连续n天内涨幅超一个标准:
-        目前标准是连续7天涨幅超40%
-    b）T日的股价有可能破T日的均线价格:
-        目前标准是T日的跌停价小于T日均线价格。T-1日股价大于T-1日的均线价格
-    c）更大均线的趋势向上:
-        目前的标准是如果标准是5日均线价格买入的时候，10日均线应该是向上，如果10日均线价格买入的时候，20日均线价格向上。这个标准也可以变，比如统一用30日均线为标准。
-    d）近期的价格高点不小于T-m日，当前价格离最高点不超过m个交易日:
-        目前m的标准是，如果是5日均线买入，则不超过T-5，10日均线不超过T-10，20日均线买入不超过T-20
-    e) 当日换手率排名靠前的股票，目前标准是前600，A股的20%。
-2.T日遍历T日前已经买入的股票，计算收益率，赚钱概率。
-    a）收益率的计算是把头寸分成240份每分钟以当前价格卖出一份股票，直到收盘卖完的平均收益率。
-    b）赚钱概率是每分钟当前卖出价格高于买入价格的次数除以240。
-3.可调参数
-    a）最大回测统计时间 g_imaxback, 例如 5 表示T日买入后，最大统计T+5日的赚钱概率和收益   
-    b）买入标准 g_targetprice，买入标准现在支持5，10，20日均线买入  
-    c）start/end 统计时间段
-4.输出龙回头模拟交易XXX.xlsx
-'''
 from CAL.PyCAL import font
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
@@ -87,7 +18,7 @@ reload(xg)
 g_EMA = True
 g_security_return_value = ['T+%dOdds','T+%dRet','T+%d MaxProfit','T+%dMaxLose','T+%dOpenret' ,'T+%dCloseret']
 g_head_indexs = ['tradedate','secID','tradeprice']
-_numcandidate=2000
+_numcandidate=3000
 purchased = {}
 ma5f=5./4
 ma10f=10./9
@@ -247,7 +178,6 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
             g_security_history[0][interval+5]=g_security_history[0][interval+5] + v[interval+5]
         i = i - 1
     if account.current_minute.find('14:59')>=0:
-        g_candidates.clear()
         g_candidates = xg.findcandidate(account.universe,g_currentdate,g_targetprice,0.35,5,g_EMA,60,False,0.06)
         print 'len%d security_history %s' %(len(g_security_history),g_security_history)
         if len(g_candidates)>0:
@@ -304,13 +234,13 @@ def plot_candidate(s,lines):
 start='20160101'
 continueday = start
 #print continueday
+now=someday(now,0)
 end=now
-#for i in range(2,3):
-i = 2
-continueday = someday(continuefrom('龙回头模拟交易5_0.35_20160101-20170323-EMA-%d.xlsx'%i),0)
-continueday = '20170324'
-g_targetprice = i
-g_candidates.clear()
-_list = (startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
-for k,v in _list.iteritems():
-    plot_candidate(k[:6],v[1:])
+for i in range(2,3):
+    continueday = someday(continuefrom('龙回头模拟交易20160101-20170427-EMA-%d.xlsx'%i),0)
+    continueday='20170428'
+    g_targetprice = i
+    g_candidates.clear()
+    _list = (startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
+    for k,v in _list.iteritems():
+        plot_candidate(k[:6],v[1:])

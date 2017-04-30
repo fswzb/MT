@@ -43,7 +43,7 @@ def plotret(odds,rets):
     plt.figure(figsize=(12,9))
     ax = plt.subplot()
     oddleg, = plt.plot(odds_his,'b-',label='odds')
-    retleg, =plt.plot(rets_his,'r--',label='return')
+    retleg, =plt.plot(rets_his,'r--o',label='return')
     ylimit = (0,max(max(rets_his),max(odds_his)))
     ax.set_ylim(ylimit)
     _multilocator = len(rets)/40
@@ -93,8 +93,8 @@ def maxdown(trans):
                 summin = sum
     return summin,sumstartindex
     
-his_5 = pd.read_excel('龙回头模拟交易5_0.35_20160101-20170323-EMA-2.xlsx')
-list_5 = filterhis(his_5,'T+1Closeret',False)
+his_5 = pd.read_excel('龙回头模拟交易20160101-20170424-EMA-2.xlsx')
+list_5 = filterhis(his_5,'T+1Closeret',True)
 list_5_odds = filterhis(his_5,'T+1Odds',True)
 print len((list_5)), (list_5)
 dateindex = [e[0] for e in list_5]
