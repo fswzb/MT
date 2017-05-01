@@ -17,7 +17,16 @@ import lib.mymath as mymath
 reload(mymath)
 reload(xg)
 g_oneday = 24*60*60
-
+def issold(action):
+    action = unicode(action)
+    if action == u'证券卖出' or action == u'还款卖出' or action == u'卖出':
+        return True
+    return False
+def isbuy(action):
+    action = unicode(action)
+    if action == u'证券买入' or action == u'融资买入' or action == u'买入':
+        return True
+    return False
 def someday(_tradedate,howlong):
     _tradedate = time.mktime(time.strptime(_tradedate,'%Y%m%d'))+howlong*g_oneday
     _tradedate = time.localtime(_tradedate)
@@ -25,13 +34,13 @@ def someday(_tradedate,howlong):
     return _tradedate   
 #plot buy/sell point
 def plotbsp(_period,security):
-    dates = [x for i,x in enumerate(security['tradeDate']) if (security['action'].iloc[i]==u'证券买入')|(security['action'].iloc[i]==u'融资买入')]
+    dates = [x for i,x in enumerate(security['tradeDate']) if isbuy(security['action'].iloc[i])]
     dates2ind = [_period.index(str(x)) for x in dates]
-    prices = [x for i,x in enumerate(security['price'])  if (security['action'].iloc[i]==u'证券买入')|(security['action'].iloc[i]==u'融资买入')]
+    prices = [x for i,x in enumerate(security['price'])  if isbuy(security['action'].iloc[i])]
     plt.plot(dates2ind,prices,'ro')
-    dates = [x for i,x in enumerate(security['tradeDate']) if (security['action'].iloc[i]==u'证券卖出')|(security['action'].iloc[i]==u'还款卖出')]
+    dates = [x for i,x in enumerate(security['tradeDate']) if issold(security['action'].iloc[i])]
     dates2ind = [_period.index(str(x)) for x in dates]
-    prices = [x for i,x in enumerate(security['price'])  if (security['action'].iloc[i]==u'证券卖出')|(security['action'].iloc[i]==u'还款卖出')]
+    prices = [x for i,x in enumerate(security['price'])  if issold(security['action'].iloc[i])]
     plt.plot(dates2ind,prices,'go')
     return
 def ticker_patch(tickernumber):
@@ -53,7 +62,9 @@ def filter_trans(filename):
     data.columns = ['tradeDate','ticker','name','action','price','amount','volume']
     tickers = [ticker_patch(v) for v in data['ticker'].values]
     data['ticker'] = tickers
-    data = data[(data['action']==u'证券买入')|(data['action']==u'证券卖出')|(data['action']==u'融资买入')|(data['action']==u'还款卖出')]
+    data = data[(data['action']==u'证券买入')|(data['action']==u'证券卖出')|\
+                (data['action']==u'融资买入')|(data['action']==u'还款卖出')|\
+               (data['action']==u'买入')|(data['action']==u'卖出')]
     return data
 
 #按代码选取所有行，然后按买入，卖出切片，画出点图
@@ -127,7 +138,7 @@ def analytictrans(filelist, _order='amount'):
     Args:
         filelist (list): 交割单文件列表，['1.xlsx','2.xlsx'],交割单必须包含\
         [u'成交日期',u'证券代码',u'证券名称',u'操作',u'成交均价',u'发生金额',u'成交数量']\
-        其中证券代码是6位数字的ticker，操作只能是'证券买入' '证券卖出' '融资买入'
+        其中证券代码是6位数字的ticker，操作只能是'证券买入' '证券卖出' '融资买入' '还款卖出' '买入' '卖出'
     Returns:
 
     Examples:
@@ -183,4 +194,4 @@ def lht2lookback(filename):
 
 #lht2lookback("龙回头模拟交易_20170101-20170224-EMA-2.xlsx")
 #analytictrans(['lb龙回头模拟交易20160101-20170329-EMA-2.xlsx'],'tradeDate')
-#analytictrans(['1.xlsx'],'tradeDate')
+#analytictrans(['table.xlsx'],'tradeDate')
