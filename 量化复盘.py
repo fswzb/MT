@@ -128,6 +128,7 @@ def dailyfp(now,t1ztdic):
 
 from collections import deque
 gc2rank = deque(maxlen=300)
+#now='20170511'
 _his = DataAPI.MktIdxdGet(endDate=now,field=[u'secShortName','tradeDate','openIndex','highestIndex','lowestIndex','closeIndex','turnoverVol'],indexID='399317.ZICN')
 _startIndex = 10#最近10个交易日
 _T1ztdic={}
@@ -143,7 +144,7 @@ for _date in _his['tradeDate'][-_startIndex:].values:
 
 #export excel
 templist = _T1ztdic.keys()+_T1dtdic.keys()
-df = DataAPI.MktEqudAdjGet(beginDate=_his['tradeDate'].iloc[-1],endDate=_his['tradeDate'].iloc[-1],secID=templist,field=['tradeDate','ticker','secID','secShortName','highestPrice'])
+df = DataAPI.MktEqudAdjGet(beginDate=_his['tradeDate'].iloc[-1],endDate=_his['tradeDate'].iloc[-1],secID=templist,field=['tradeDate','ticker','secID','secShortName','closePrice'])
 df[u'涨跌停次数']=range(0,len(df))
 for i in df.index:
     if _T1ztdic.has_key(df['secID'][i]):
@@ -185,7 +186,7 @@ def handle_data(account):                  # 每个交易日的买入卖出指�
             lastzt[i] = ''
             kbnumber[i] = 0
             kb[i] = False
-        if account.reference_price[df['secID'][i]] != df['highestPrice'][i]:
+        if account.reference_price[df['secID'][i]] != df['closePrice'][i]:
             kb[i] = False
         elif kb[i] == False:
             kb[i] = True
@@ -195,13 +196,13 @@ def handle_data(account):                  # 每个交易日的买入卖出指�
                 firstzt[i] = lastzt[i]
                 kbnumber[i] = 0
     return
-bt, perf =  quartz.backtest(start = _his['tradeDate'].iloc[-1],end = _his['tradeDate'].iloc[-1],benchmark = benchmark,universe = universe,capital_base = capital_base,initialize = initialize,handle_data = handle_data,refresh_rate = refresh_rate,freq = freq)
+bt, perf,bt_by_account =  quartz.backtest(start = _his['tradeDate'].iloc[-1],end = _his['tradeDate'].iloc[-1],benchmark = benchmark,universe =universe,capital_base = capital_base,initialize = initialize,handle_data = handle_data,refresh_rate = refresh_rate,freq = freq)
 cols = []
 for i in range(0,len(df)):
     cols.append('%s封板开板%i次%s封死'%(firstzt[i],kbnumber[i],lastzt[i]))
 
 df[u'涨跌停时间']=cols
-del df['highestPrice']
+del df['closePrice']
 del df['secID']
 dfsort = df.sort_values([u'涨跌停次数', u'涨跌停时间'], ascending=[False, True])
 dfsort.to_excel('dailyreview.xlsx')
