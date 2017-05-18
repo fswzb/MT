@@ -26,8 +26,6 @@ ma20f=20./19
 _oneday = 24*60*60
 g_candidates = {'000001.XSHE':'globalcandidates'}
 g_security_history = {}
-g_currnetdate = ''
-g_previousdate = ''
 now = time.strftime('%Y%m%d')
 start = '20160101'  # 回测起始时间
 end = now   # 回测结束时间
@@ -127,7 +125,7 @@ def startsimulate(T_1day,_end):
     for s,v in g_candidates.items():
         targetprice = round(v[g_targetprice],2)
         if canbuy(s,targetprice,_end,g_imaxback+2):
-            _val =[g_currentdate,s,min(targetprice,dfminutes['closePrice'].iloc[0])]
+            _val =[_end,s,min(targetprice,dfminutes['closePrice'].iloc[0])]
             i = len(g_security_return_value)*g_imaxback
             while i > 0:
                 _val.append(0.)
@@ -182,8 +180,8 @@ continueday = start
 now=someday(now,0)
 end=now
 for i in range(2,3):
-    continueday = someday(continuefrom('龙回头模拟交易V120160101-20170511-EMA-%d.xlsx'%i),0)
-    continueday='20170511'
+    continueday = someday(continuefrom('龙回头模拟交易V120160101-20170517-EMA-%d.xlsx'%i),0)
+    continueday='20170517'
     g_targetprice = i
     g_candidates.clear()
     _list = (startsimulate(continueday,end))
