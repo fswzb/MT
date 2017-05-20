@@ -51,25 +51,25 @@ def plotret(odds,rets):
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
     for label in ax.xaxis.get_ticklabels():
         label.set_rotation(90)
-    plt.yticks(numpy.arange(0,ylimit[1]+0.1,0.1))
+    plt.yticks(numpy.arange(-0.2,ylimit[1]+0.1,0.1))
     plt.grid()
     plt.legend(handles=[retleg,oddleg],loc="lower right")
     ax1 = ax.twinx()
     ax1.set_ylim(ylimit)
-    plt.yticks(numpy.arange(0,ylimit[1]+0.1,0.1))
+    plt.yticks(numpy.arange(-0.2,ylimit[1]+0.1,0.1))
     plt.show()
     pass
 def filterhis(trancations,field,baverage):
     tradedate = ''
     retofdate = number = 0
     his = []
-    trancations['T+0ret']=numpy.arange(0,len(trancations),1.0)
+    #trancations['T+0ret']=numpy.arange(0,len(trancations),1.0)
     for i in trancations.index:
         if i == 0:
             tradedate=trancations['tradedate'][1]
             continue
-        closes = DataAPI.MktEqudAdjGet(secID=trancations['secID'][i],beginDate=trancations['tradedate'][i],endDate=trancations['tradedate'][i],field=['closePrice'],isOpen='1')
-        trancations['T+0ret'][i] = closes['closePrice'][0]/trancations['tradeprice'][i] - 1
+        #closes = DataAPI.MktEqudAdjGet(secID=trancations['secID'][i],beginDate=trancations['tradedate'][i],endDate=trancations['tradedate'][i],field=['closePrice'],isOpen='1')
+        #trancations['T+0ret'][i] = closes['closePrice'][0]/trancations['tradeprice'][i] - 1
         if tradedate.find(trancations['tradedate'][i])>=0:
             number = number + 1
             retofdate = trancations[field][i]+retofdate
@@ -93,8 +93,11 @@ def maxdown(trans):
                 summin = sum
     return summin,sumstartindex
     
-his_5 = pd.read_excel('龙回头模拟交易20160101-20170424-EMA-2.xlsx')
-list_5 = filterhis(his_5,'T+1Closeret',True)
+his_5 = pd.read_excel('龙回头模拟交易20160327-20170519-EMA-2.xlsx')
+#add one row for ending row
+his_5.loc[len(his_5)] =his_5.irow(0)
+
+list_5 = filterhis(his_5,'T+1Ret',True)
 list_5_odds = filterhis(his_5,'T+1Odds',True)
 print len((list_5)), (list_5)
 dateindex = [e[0] for e in list_5]
