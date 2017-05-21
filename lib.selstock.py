@@ -150,7 +150,7 @@ def plot_dragonpoint(ax1,_dfquotes,beginindex,targetprices,_imulti=40):
     x1 = range(0,len(gdfquotes)-beginindex+1,len(gdfquotes)-beginindex)
     for _p in targetprices:
         y1 = [_p for n in x1]
-        _percen = mymath.rod(_p/_zero-1,2)*100
+        _percen = mymath.rod(_p/_zero-1,4)*100
         if _percen < 0 and _percen > -11:
             ax1.plot(x1,y1,'m--')
             ax1.text(targetprices.index(_p)*3,_p,'%.2f(%.2f%%)'%(mymath.rod(_p,2),_percen),rotation=90,va='bottom',color='m')
