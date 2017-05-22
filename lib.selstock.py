@@ -193,6 +193,7 @@ def continueup(dataturnover,datalowest,datahighest,period,change):
 
 def ztcs(data):
     data = data.tolist()
+    data = [round(e,2) for e in data]
     if len(data) < 2:
         return 0
     i = 0
@@ -237,7 +238,7 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
         _closep = _closePrice.iloc[-1]
         if (end/start-1 >= incr) \
         and (_closep < end) \
-        and ztcs(_shis['closePrice'][count-30:count]) >= 3:      
+        and ztcs(_shis['closePrice'][count-30:count]) >= 3:     
             period = end - start
             golden5 = start + 0.5*period
             golden618 = start + 0.618*period
@@ -304,4 +305,4 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
                 if _enableprint:
                     print '%s : %s' %(cl,value)
     return stocks
-#findcandidate(['002651.XSHE','002300.XSHE'],'20170208',4)
+#findcandidate(['002282.XSHE'],'20170504',2,0.35,5,True,60,False,0.06)
