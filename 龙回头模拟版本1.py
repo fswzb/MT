@@ -76,11 +76,11 @@ def canbuy(s,targetprice,date,interval=g_imaxback):
     data = DataAPI.MktEqudAdjGet(beginDate=_lastdate,endDate=date,secID=s,isOpen=1,pandas='1')
     #停牌
     if len(data) == 0 or data['tradeDate'].iloc[-1].replace('-','').find(date) < 0:
-        return False
+        return -1
     #最近几天没有买且股价满足条件
     if (len(data) >= interval or _i == 0) and data['lowestPrice'].iloc[-1] <= targetprice:
-        return True
-    return False
+        return min(targetprice,data['openPrice'].iloc[-1])
+    return -1
 
 def continuefrom(filename):
     excel = pd.read_excel(filename)
@@ -93,10 +93,9 @@ def continuefrom(filename):
 def startsimulate(T_1day,_end):
 #1.T-1日选股
     global g_candidates
-    print T_1day,_end
+    print 'T-1day:',T_1day,'Tday:',_end
     gc = universe.preview(T_1day,skip_halted=True)
     g_candidates = xg.findcandidate(gc,T_1day,g_targetprice,0.35,5,g_EMA,60,False,0.06)
-    print g_candidates
 #2.遍历交易日志文件，调用API获得T日分钟线计算T+n日股票收益
     for k,pos in g_security_history.items():
         if(pos[-6]==pos[-5]==pos[-4]==0):#T+5Odds，Ret，MaxProfit
@@ -124,8 +123,9 @@ def startsimulate(T_1day,_end):
 #3.T日线复盘，根据最低价和交易日志，确定T日买入股票
     for s,v in g_candidates.items():
         targetprice = round(v[g_targetprice],2)
-        if canbuy(s,targetprice,_end,g_imaxback+2):
-            _val =[_end,s,min(targetprice,dfminutes['closePrice'].iloc[0])]
+        buypoint = canbuy(s,targetprice,_end,g_imaxback+2)
+        if  buypoint > -1:
+            _val =[_end,s,buypoint]
             i = len(g_security_return_value)*g_imaxback
             while i > 0:
                 _val.append(0.)
@@ -135,7 +135,7 @@ def startsimulate(T_1day,_end):
     gc = universe.preview(_end,skip_halted=True)
     g_candidates = xg.findcandidate(gc,_end,g_targetprice,0.35,5,g_EMA,60,False,0.06)
     if len(g_candidates)>0:
-        print 'tomorrow candidate %s'%[k[:6] for k,v in g_candidates.items()]
+        print _end,' tomorrow candidate %s'%[(k[:6],v[0]) for k,v in g_candidates.items()]
 #5.更新交易日志文件
     indexs = copy.copy(g_head_indexs)
     i = 1
@@ -151,7 +151,8 @@ def startsimulate(T_1day,_end):
         data.to_excel('龙回头模拟交易V1%s-%s-%d.xlsx' %(start,_end,g_targetprice),header=indexs)  
     cansfiltered = {}
     for k,v in g_candidates.iteritems():#filter the candidates already bought before
-        if canbuy(k,99999999.,_end,g_imaxback+1):
+        buypoint = canbuy(k,99999999.,_end,g_imaxback+1)
+        if buypoint > -1:
             cansfiltered[k]=v
     g_security_history.clear()
     return cansfiltered
@@ -180,8 +181,8 @@ continueday = start
 now=someday(now,0)
 end=now
 for i in range(2,3):
-    continueday = someday(continuefrom('龙回头模拟交易V120160101-20170517-EMA-%d.xlsx'%i),0)
-    continueday='20170517'
+    continueday = someday(continuefrom('龙回头模拟交易V120160101-20170525-EMA-%d.xlsx'%i),0)
+    continueday='20170525'
     g_targetprice = i
     g_candidates.clear()
     _list = (startsimulate(continueday,end))
