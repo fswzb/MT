@@ -78,8 +78,6 @@ def initialize(account): # 初始化虚拟账户状态
     pass
 g_vardic = {}
 ticks = 0
-duration = 2 #minute
-jump = 3 #point
 def initgvardic():
     global g_security_history
     for k,v in g_security_history.items():
@@ -114,9 +112,10 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
     ticks = ticks+1
     return
 
-def continuefrom(filename):
+def continuefrom(filename, days=15):
     global excel
     excel = pd.read_excel(filename)
+    excel = excel[-days:]
     _i = 1
     while _i <= g_imaxback:
         excel['T+%dOpenret'%_i][0] = 0
@@ -130,11 +129,13 @@ def continuefrom(filename):
     return excel['tradedate'].iloc[1]
 
 def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initialize,_handle_data,_refresh_rate,_freq):
-    bt, perf =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,capital_base = _capital_base,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq)
+    bt, perf,bt_by_account =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,capital_base = _capital_base,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq)
     sumret = []
     for n in range(0,240):
         sumr = 0
         for k,v in g_vardic.iteritems():
+            if(len(v['fenshi'])==0):
+                break
             sumr = sumr + v['fenshi'][n]/v['cost']-1
         sumret.append(sumr)
     plt.title('return in time')
@@ -142,19 +143,18 @@ def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initiali
     plt.grid()
     plt.xlim(0,239)
     plt.xticks(range(0,240,15))
-    print max(sumret), " ",sumret.index(max(sumret))
+    print '最大收益:',max(sumret), " ",'最大收益卖出时机是开盘后:',sumret.index(max(sumret)),'分钟'
     print sumret
     pass
-start='20160101'
+start='20170101'
 continueday = start
 #print continueday
-end='20170325'
+end='20170523'
 ax = plt.subplots()
-duration = 5 #minute
-jump = 0.03 #point
+recenttrancations = 10
 for i in range(2,3):
     g_targetprice = i
-    continueday = someday(continuefrom('龙回头模拟交易6_0.4_20160101-20170324-EMA-2.xlsx'),1)
-    print continueday
+    continueday = someday(continuefrom('龙回头模拟交易20170324-20170526-EMA-2.xlsx',recenttrancations),1)
+    print continueday,'日以来最近的 ',recenttrancations,' 次交易'
     startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq)
 

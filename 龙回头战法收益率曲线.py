@@ -93,11 +93,18 @@ def maxdown(trans):
                 summin = sum
     return summin,sumstartindex
     
-his_5 = pd.read_excel('龙回头模拟交易20160327-20170519-EMA-2.xlsx')
+#his_5 = pd.read_excel('龙回头模拟交易实际交易.xlsx')
+his_5 = pd.read_excel('龙回头模拟交易V120160101-20170526-EMA-2.xlsx')
 #add one row for ending row
 his_5.loc[len(his_5)] =his_5.irow(0)
+#check the last 30 trancations
+his_5 = his_5[-60:]
+his_5.index = range(0,len(his_5))
 
-list_5 = filterhis(his_5,'T+1Ret',True)
+#list_5 = filterhis(his_5,'T+1Closeret',True)
+#list_5 = filterhis(his_5,'T+1MyRet',True)
+#list_5 = filterhis(his_5,'T+1Ret',True)
+list_5 = filterhis(his_5,'T+1Openret',True)
 list_5_odds = filterhis(his_5,'T+1Odds',True)
 print len((list_5)), (list_5)
 dateindex = [e[0] for e in list_5]
