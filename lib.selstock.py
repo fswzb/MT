@@ -224,7 +224,7 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
     """
     stocks = {}
     for s in guci:
-        _shis = DataAPI.MktEqudAdjGet(endDate=_previousdate,secID=s,isOpen=1,pandas='1')
+        _shis = DataAPI.MktEqudAdjGet(endDate=_previousdate,secID=s,isOpen=1,field=['closePrice','lowestPrice','highestPrice','openPrice','turnoverRate'],pandas='1')
         count = len(_shis)
         if(count< howlong):#to caculdate the MA20 of 30 days need at lease 50 days transaction and also we don't cound new stock
             continue
@@ -293,16 +293,16 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
                 if _shis['turnoverRate'][st:count-_dam].mean() < turnrate:
                     continue
                 #check if history max
-                history = DataAPI.MktEqudAdjGet(beginDate='19991219',endDate=_previousdate,secID=s,isOpen=1,pandas='1')
+                history = DataAPI.MktEqudAdjGet(beginDate='19991219',endDate=_previousdate,secID=s,isOpen=1,field=['highestPrice','secShortName'],pandas='1')
                 _hmax = history['highestPrice'].max()
                 _ratio = _closep/_hmax-1.
                 if abs(_ratio) < 0.1:
                     value = ["(HMAX)",golden8,_ma5,golden618,_ma10,golden5,_ma20]
                 else:
                      value = ["(Norm)",golden8,_ma5,golden618,_ma10,golden5,_ma20]
-                cl = s[0:6]+_shis['secShortName'][0]
+                cl = s[0:6]+history['secShortName'].iloc[-1]
                 stocks[s] = value
                 if _enableprint:
                     print '%s : %s' %(cl,value)
     return stocks
-#findcandidate(['002282.XSHE'],'20170504',2,0.35,5,True,60,False,0.06)
+#findcandidate(['000025.XSHE'],'20170621',2,0.35,5,True,60,True,0.06)
