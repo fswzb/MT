@@ -1,4 +1,3 @@
-
 from CAL.PyCAL import font
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
@@ -18,7 +17,6 @@ reload(xg)
 g_EMA = True
 g_security_return_value = ['T+%dOdds','T+%dRet','T+%d MaxProfit','T+%dMaxLose','T+%dOpenret' ,'T+%dCloseret']
 g_head_indexs = ['tradedate','secID','tradeprice']
-_numcandidate=3000
 purchased = {}
 ma5f=5./4
 ma10f=10./9
@@ -32,7 +30,7 @@ now = time.strftime('%Y%m%d')
 start = '20160101'  # 回测起始时间
 end = now   # 回测结束时间
 benchmark = 'HS300'    # 参考标准
-universe = DynamicUniverse('A').apply_filter(Factor.VOL10.nlarge(_numcandidate))#&Factor.REVS10.nlarge(_numcandiate)) #set_universe('A') # 证券池，支持股票和基金
+universe = set_universe('A') # 证券池，支持股票和基金
 capital_base = 2000000  # 起始资金
 refresh_rate = 1       # 调仓频率，即每 refresh_rate 个交易日执行一次 handle_data() 函数
 freq = 'm'
@@ -135,7 +133,7 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
             i = i -1
             continue
         if account.current_minute.find('09:30') >= 0:
-            _his = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],isOpen='1',pandas='1')
+            _his = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],field=['tradeDate'],isOpen='1',pandas='1')
             g_difflist[i]=len(_his)-1
             if len(_his) > 0 and _his['tradeDate'].iloc[-1].find(account.current_date.strftime('%Y-%m-%d')) < 0:#ting pai
                 g_difflist[i] = 0
@@ -163,7 +161,7 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
 
         #at the end of a day, caculate the result
         if(account.current_minute.find('14:59')>=0):
-            _his = DataAPI.MktEqudAdjGet(beginDate=g_currentdate,endDate=g_currentdate,secID=v[1],isOpen='1',pandas='1')
+            _his = DataAPI.MktEqudAdjGet(beginDate=g_currentdate,endDate=g_currentdate,secID=v[1],field=['highestPrice','lowestPrice','openPrice','closePrice'],isOpen='1',pandas='1')
             v[interval] = v[interval]/g_ifreq#the odds
             v[interval+1] = v[interval+1]/g_ifreq#the return
             v[interval+2] = _his['highestPrice'][0]/v[2]-1#the max possible profit
@@ -192,7 +190,7 @@ def continuefrom(filename):
     return excel['tradedate'].iloc[-1]
 
 def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initialize,_handle_data,_refresh_rate,_freq):
-    bt, perf =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,capital_base = _capital_base,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq)
+    bt, perf,bt_by_account  =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,capital_base = _capital_base,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq)
     indexs = copy.copy(g_head_indexs)
     i = 1
     while i <= g_imaxback:
@@ -234,13 +232,12 @@ def plot_candidate(s,lines):
 start='20160101'
 continueday = start
 #print continueday
-now=someday(now,0)
-end=now
+now=someday(now,-2)
 for i in range(2,3):
-    continueday = someday(continuefrom('龙回头模拟交易20160101-20170427-EMA-%d.xlsx'%i),0)
-    continueday='20170428'
+    #continueday = someday(continuefrom('龙回头模拟交易20170324-20170616-EMA-%d.xlsx'%i),0)
+    #continueday='20170616'
     g_targetprice = i
     g_candidates.clear()
-    _list = (startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
+    _list = (startsimulate(continueday,now,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
     for k,v in _list.iteritems():
         plot_candidate(k[:6],v[1:])
