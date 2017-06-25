@@ -1,9 +1,4 @@
 
-# coding: utf-8
-
-# In[ ]:
-
-
 from CAL.PyCAL import font
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
@@ -91,7 +86,7 @@ def canbuy(s,targetprice,date,interval=g_imaxback):
             _lastdate = _e[0]
             break
         _i = _i - 1
-    data = DataAPI.MktEqudAdjGet(beginDate=_lastdate,endDate=date,secID=s,isOpen=1,pandas='1')
+    data = DataAPI.MktEqudAdjGet(beginDate=_lastdate,endDate=date,secID=s,field=['tradeDate','lowestPrice'],isOpen=1,pandas='1')
     #停牌
     if len(data) == 0 or data['tradeDate'].iloc[-1].replace('-','').find(date) < 0:
         return False
@@ -143,7 +138,7 @@ def handle_data(context): #在每个交易日开盘之前运行，用来执行�
             i = i -1
             continue
         if context.current_minute.find('09:30') >= 0:
-            _his = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],isOpen='1',pandas='1')
+            _his = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],field=['tradeDate'],isOpen='1',pandas='1')
             g_difflist[i]=len(_his)-1
             if len(_his) > 0 and _his['tradeDate'].iloc[-1].find(context.current_date.strftime('%Y-%m-%d')) < 0:#ting pai
                 g_difflist[i] = 0
@@ -171,7 +166,7 @@ def handle_data(context): #在每个交易日开盘之前运行，用来执行�
 
         #at the end of a day, caculate the result
         if(context.current_minute.find('14:59')>=0):
-            _his = DataAPI.MktEqudAdjGet(beginDate=g_currentdate,endDate=g_currentdate,secID=v[1],isOpen='1',pandas='1')
+            _his = DataAPI.MktEqudAdjGet(beginDate=g_currentdate,endDate=g_currentdate,secID=v[1],field=['highestPrice','lowestPrice','openPrice','closePrice'],isOpen='1',pandas='1')
             v[interval] = v[interval]/g_ifreq#the odds
             v[interval+1] = v[interval+1]/g_ifreq#the return
             v[interval+2] = _his['highestPrice'][0]/v[2]-1#the max possible profit
@@ -186,7 +181,7 @@ def handle_data(context): #在每个交易日开盘之前运行，用来执行�
             g_security_history[0][interval+5]=g_security_history[0][interval+5] + v[interval+5]
         i = i - 1
     if context.current_minute.find('14:59')>=0:
-        g_candidates = xg.findcandidate(['002011.XSHE','603098.XSHG','002305.XSHE','000638.XSHE','603778.XSHG','002809.XSHE','000507.XSHE','002837.XSHE','000025.XSHE'],g_currentdate,g_targetprice,0.35,5,g_EMA,60,False,0.06)
+        g_candidates = xg.findcandidate(context.get_universe(exclude_halt=True),g_currentdate,g_targetprice,0.35,5,g_EMA,60,False,0.06)
         print 'len%d security_history %s' %(len(g_security_history),g_security_history)
         if len(g_candidates)>0:
             print 'tomorrow candidate %s'%[k[:6] for k,v in g_candidates.items()]
@@ -210,9 +205,9 @@ def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initiali
         i = i + 1
     data = pd.DataFrame.from_dict(data= g_security_history,orient='index')
     if g_EMA:
-        data.to_excel('龙回头模拟交易%s-%s-EMA-%d.xlsx' %(start,_end,g_targetprice),header=indexs)  
+        data.to_excel('龙回头模拟交易Q3%s-%s-EMA-%d.xlsx' %(start,_end,g_targetprice),header=indexs)  
     else:
-        data.to_excel('龙回头模拟交易%s-%s-%d.xlsx' %(start,_end,g_targetprice),header=indexs)  
+        data.to_excel('龙回头模拟交易Q3%s-%s-%d.xlsx' %(start,_end,g_targetprice),header=indexs)  
     cansfiltered = {}
     for k,v in g_candidates.iteritems():#filter the candidates already bought before
         if canbuy(k,99999999.,_end,g_imaxback+1):
@@ -239,7 +234,7 @@ def plot_candidate(s,lines):
     ax1.yaxis.set_visible(False)
     plt.show()
 
-start='20170601'
+start='20160101'
 continueday = start
 #print continueday
 now=someday(now,-1)
@@ -251,4 +246,3 @@ for i in range(2,3):
     _list = (startsimulate(continueday,now,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
     for k,v in _list.iteritems():
         plot_candidate(k[:6],v[1:])
-
