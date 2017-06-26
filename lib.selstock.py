@@ -208,7 +208,7 @@ def ztcs(data):
             break
     return zt
 #target 1，3，5对应黄金分割0.809，0.618，0.5选股。2，4，6对应5日10日20日均线选股
-def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlong=60,_enableprint=True,turnrate=0.06):
+def findcandidate(guci,_enddate,target=2,incr=0.35,duration=5,_EMA=True,howlong=60,_enableprint=False,turnrate=0.06,_begindate='20130101'):
     """
     选龙回头标的股
     Args:
@@ -224,9 +224,9 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
     """
     stocks = {}
     for s in guci:
-        _shis = DataAPI.MktEqudAdjGet(endDate=_previousdate,secID=s,isOpen=1,field=['closePrice','lowestPrice','highestPrice','openPrice','turnoverRate'],pandas='1')
+        _shis = DataAPI.MktEqudAdjGet(beginDate=_begindate,endDate=_enddate,secID=s,isOpen=1,field=['closePrice','lowestPrice','highestPrice','openPrice','turnoverRate'],pandas='1')
         count = len(_shis)
-        if(count< howlong):#to caculdate the MA20 of 30 days need at lease 50 days transaction and also we don't cound new stock
+        if(count< howlong):#to caculdate the MA20 of 30 days need at lease 50 days transaction and also we ignore new stock
             continue
         _closePrice = _shis['closePrice'][count-20:count]
         _lowestPrice = _shis['lowestPrice'][count-30:count]
@@ -293,7 +293,7 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
                 if _shis['turnoverRate'][st:count-_dam].mean() < turnrate:
                     continue
                 #check if history max
-                history = DataAPI.MktEqudAdjGet(beginDate='19991219',endDate=_previousdate,secID=s,isOpen=1,field=['highestPrice','secShortName'],pandas='1')
+                history = DataAPI.MktEqudAdjGet(beginDate='19910101',endDate=_enddate,secID=s,isOpen=1,field=['highestPrice','secShortName'],pandas='1')
                 _hmax = history['highestPrice'].max()
                 _ratio = _closep/_hmax-1.
                 if abs(_ratio) < 0.1:
@@ -305,4 +305,4 @@ def findcandidate(guci,_previousdate,target,incr=0.5,duration=7,_EMA=False,howlo
                 if _enableprint:
                     print '%s : %s' %(cl,value)
     return stocks
-#findcandidate(['000025.XSHE'],'20170621',2,0.35,5,True,60,True,0.06)
+#findcandidate(['000025.XSHE'],'20170621')
