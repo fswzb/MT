@@ -32,7 +32,6 @@ start = '20160101'  # 回测起始时间
 end = now   # 回测结束时间
 benchmark = 'HS300'    # 参考标准
 universe = set_universe('A') # 证券池，支持股票和基金
-capital_base = 2000000  # 起始资金
 refresh_rate = 1       # 调仓频率，即每 refresh_rate 个交易日执行一次 handle_data() 函数
 freq = 'm'
 accounts = {
@@ -194,8 +193,8 @@ def continuefrom(filename):
         _i=_i+1
     return excel['tradedate'].iloc[-1]
 
-def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initialize,_handle_data,_refresh_rate,_freq):
-    bt, perf,bt_by_account  =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,capital_base = _capital_base,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq,accounts =  accounts)
+def startsimulate(_continueday,_end,_benchmark,_universe,_initialize,_handle_data,_refresh_rate,_freq):
+    bt, perf,bt_by_account  =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq,accounts =  accounts)
     indexs = copy.copy(g_head_indexs)
     i = 1
     while i <= g_imaxback:
@@ -239,10 +238,10 @@ continueday = start
 #print continueday
 now=someday(now,-1)
 for i in range(2,3):
-    #continueday = someday(continuefrom('龙回头模拟交易20170324-20170616-EMA-%d.xlsx'%i),0)
-    #continueday='20170616'
+    continueday = someday(continuefrom('龙回头模拟交易Q320160101-20170626-EMA-%d.xlsx'%i),0)
+    continueday='20170626'
     g_targetprice = i
     g_candidates.clear()
-    _list = (startsimulate(continueday,now,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
+    _list = (startsimulate(continueday,now,benchmark,universe,initialize,handle_data,refresh_rate,freq))
     for k,v in _list.iteritems():
         plot_candidate(k[:6],v[1:])
