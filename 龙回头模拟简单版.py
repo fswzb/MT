@@ -179,7 +179,7 @@ def handle_data(context): #在每个交易日开盘之前运行，用来执行�
     g_candidates = xg.findcandidate(context.get_universe(exclude_halt=True),g_currentdate,g_targetprice,0.35,5,g_EMA,60,False,0.06)
     print 'len%d security_history %s' %(len(g_security_history),g_security_history)
     if len(g_candidates)>0:
-        print 'tomorrow candidate %s'%[k[:6] for k,v in g_candidates.items()]
+        print 'tomorrow candidate %d %s'%(len(g_candidates),[k[:6] for k,v in g_candidates.items()])
     return
 def continuefrom(filename):
     excel = pd.read_excel(filename)
@@ -189,7 +189,7 @@ def continuefrom(filename):
         _i=_i+1
     return excel['tradedate'].iloc[-1]
 
-def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initialize,_handle_data,_refresh_rate,_freq):
+def startsimulate(_continueday,_end,_benchmark,_universe,_initialize,_handle_data,_refresh_rate,_freq):
     bt, perf,bt_by_account  =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq,accounts =  accounts)
     indexs = copy.copy(g_head_indexs)
     i = 1
@@ -229,7 +229,7 @@ def plot_candidate(s,lines):
     ax1.yaxis.set_visible(False)
     plt.show()
 
-start='20170101'
+start='20161230'
 continueday = start
 #print continueday
 now=someday(now,-1)
@@ -238,6 +238,6 @@ for i in range(2,3):
     #continueday='20170616'
     g_targetprice = i
     g_candidates.clear()
-    _list = (startsimulate(continueday,now,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq))
+    _list = (startsimulate(continueday,now,benchmark,universe,initialize,handle_data,refresh_rate,freq))
     for k,v in _list.iteritems():
         plot_candidate(k[:6],v[1:])
