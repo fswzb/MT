@@ -200,11 +200,8 @@ def ztcs(data):
     zt = 0
     previouszt = 0
     while True:
-        if data[i+1] == mymath.rod(data[i]*1.1,2):
-            if data[i+1] >= previouszt:
-                zt = zt + 1
-            else:
-                zt = 1
+        if data[i+1] == mymath.rod(data[i]*1.1,2) and data[i+1] >= previouszt:
+            zt = zt + 1
             previouszt = data[i+1]                     
         i = i + 1
         if i > len(data)-2:
@@ -330,8 +327,6 @@ def iscandidate(s,_shis,target=2,incr=0.35,duration=5,_EMA=True,howlong=60,turnr
             if _shis['turnoverRate'][st:count-_dam].mean() < turnrate:
                 return False
             #计算涨停次数，不能用复权价格，只能用不复权的价格。（问题是除权日的涨停计算可能会有问题）
-            #_his = DataAPI.MktEqudGet(beginDate=_shis['tradeDate'].iloc[-30],endDate=_shis['tradeDate'].iloc[-1],secID=s,isOpen=1,field=['closePrice'],pandas='1')
-            #if ztcs(_his['closePrice']) < 3:   
             if ztnum(_shis['tradeDate'].iloc[-30],_shis['tradeDate'].iloc[-1],s)<3:
                 return False
         else:
@@ -359,7 +354,6 @@ def ztnum(_beginDate,_endDate,s):
             _closep = AdjP(_Divhis,_Divdate,_his['closePrice'].iloc[i])
         else:
             _closep = _his['closePrice'].iloc[i]
-            
         if _his['closePrice'].iloc[i+1] == mymath.rod(_closep*1.1,2):
             if _his['closePrice'].iloc[i+1] >= previouszt:
                 zt = zt + 1
@@ -368,8 +362,7 @@ def ztnum(_beginDate,_endDate,s):
             previouszt = _his['closePrice'].iloc[i+1]
             #除权日前涨停价格除权
             if _his.index[i+1] < _Divdate:
-                previouszt = AdjP(_Divhis,_Divdate,previouszt)
-            
+                previouszt = AdjP(_Divhis,_Divdate,previouszt)            
         i = i + 1
         if i > len(_his)-2:
             break
@@ -385,13 +378,9 @@ def AdjP(_Divhis,_Divdate,p):
     ap = p/_div
     return ap
 #测试代码
-#end_d = '20170108'
-#uni = ['300331.xshe','603990.xshg', '603878.xshg', '603098.xshg', '002827.xshe', '000506.xshe','000595.xshe', '603036.xshg', '002826.xshe', '600099.xshg', '002829.xshe', '300080.xshe', '002830.xshe']
+#end_d = '20160328'
+#uni = ['000838.XSHE']#,'300331.xshe','603990.xshg', '603878.xshg', '603098.xshg', '002827.xshe', '000506.xshe','000595.xshe', '603036.xshg', '002826.xshe', '600099.xshg', '002829.xshe', '300080.xshe', '002830.xshe']
 #for s in uni:
-#    _shis = DataAPI.MktEqudAdjGet(beginDate='20160101',endDate=end_d,secID=s,isOpen=1,field=['closePrice','lowestPrice','highestPrice','openPrice','turnoverRate','tradeDate'],pandas='1')
+#    _shis = DataAPI.MktEqudAdjGet(beginDate='19910101',endDate=end_d,secID=s,isOpen=1,field=['closePrice','lowestPrice','highestPrice','openPrice','turnoverRate','tradeDate'],pandas='1')
 #    print findsinglecandidate(s,end_d,_shis)
 #print findcandidate(uni,end_d)
-#import lib.selstock as xg
-#print xg.findcandidate(uni,end_d)
-#print DataAPI.MktEqudAdjAfGet(beginDate='20161201',endDate=end_d,secID='300331.xshe',isOpen=1,field=['tradeDate','closePrice','lowestPrice','highestPrice','openPrice','turnoverRate'],pandas='1')
-#DataAPI.MktLimitGet(secID='300331.xshe',tradeDate='20161227',pandas="1")
