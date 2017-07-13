@@ -359,6 +359,7 @@ def ztnum(_beginDate,_endDate,s):
             #除权日前涨停价格除权
             if previousztdate < _Divdate and _his.index[i+1] >= _Divdate:
                 previouszt = AdjP(_Divhis,_Divdate,previouszt)
+            if _his['closePrice'].iloc[i+1] >= previouszt:
                 zt = zt + 1
                 previouszt = _his['closePrice'].iloc[i+1]
                 previousztdate = _his.index[i+1]
