@@ -1,6 +1,27 @@
 #lib.marketsummary
 import lib.mymath as mymath
+import numpy as np
 reload(mymath)
+def AdjP(_Divhis,_Divdate,p):
+    accumAdj = False
+    for b in _Divhis['exDivDate']:
+        if b == _Divdate:
+            accumAdj = True
+            break
+    if accumAdj == False:
+        return p
+    _divs = _Divhis.set_index('exDivDate')
+    
+    if np.isnan(_divs['perCashDiv'].loc[_Divdate]) == False:
+        p = p - _divs['perCashDiv'].loc[_Divdate]
+    _div = 1.
+    if np.isnan(_divs['perShareDivRatio'].loc[_Divdate]) == False:
+        _div = _div + _divs['perShareDivRatio'].loc[_Divdate]
+    if np.isnan(_divs['perShareTransRatio'].loc[_Divdate]) == False:
+        _div = _div + _divs['perShareTransRatio'].loc[_Divdate]
+    ap = p/_div
+    return ap
+
 def lxztordt(gc,tradedate,zt=True,turnrate=0.03):
     """
     给定股票代码列表，计算连板数
@@ -22,9 +43,10 @@ def lxztordt(gc,tradedate,zt=True,turnrate=0.03):
         _continuebang = 0
         _continueturn = 0
         if s.find('.')>=0:
-            _his = DataAPI.MktEqudAdjGet(endDate=tradedate,secID=s,field=['secShortName','lowestPrice','closePrice','turnoverRate'],isOpen=1,pandas='1')
+            _his = DataAPI.MktEqudGet(endDate=tradedate,secID=s,field=['tradeDate','secShortName','lowestPrice','closePrice','turnoverRate'],isOpen=1,pandas='1')
         else:
-            _his = DataAPI.MktEqudAdjGet(endDate=tradedate,ticker=s,field=['secShortName','lowestPrice','closePrice','turnoverRate'],isOpen=1,pandas='1')
+            _his = DataAPI.MktEqudGet(endDate=tradedate,ticker=s,field=['tradeDate','secShortName','lowestPrice','closePrice','turnoverRate'],isOpen=1,pandas='1')
+        Divhis = DataAPI.EquDivGet(secID=s,eventProcessCD='6',field=['exDivDate','perShareDivRatio','perShareTransRatio','perCashDiv'],pandas="1")
         indexreverse = range(-1,-len(_his),-1)
         for ind in indexreverse:
             if(_his['secShortName'].iloc[ind].find('S')>=0):
@@ -38,11 +60,12 @@ def lxztordt(gc,tradedate,zt=True,turnrate=0.03):
                 else:
                     maxinc = 0.9
             if ind > indexreverse[-1]:
-                if str(_his['closePrice'].iloc[ind]) == str(mymath.rod(_his['closePrice'].iloc[ind-1]*maxinc,2)):
+                _preclose = AdjP(Divhis,_his['tradeDate'].iloc[ind],_his['closePrice'].iloc[ind-1])
+                if _his['closePrice'].iloc[ind] == mymath.rod(_preclose*maxinc,2):
                     _continuebang = _continuebang+1
                     _continueturn = _continueturn+_his['turnoverRate'].iloc[ind]
                     #如果是统计涨停，则需要检查是不是真实涨停,如果不是就不统计连板数
-                    if zt and str(_his['lowestPrice'].iloc[ind]) == str(_his['closePrice'].iloc[ind]) and _his['turnoverRate'].iloc[ind] < turnrate:
+                    if zt and _his['lowestPrice'].iloc[ind] == _his['closePrice'].iloc[ind] and _his['turnoverRate'].iloc[ind] < turnrate:
                         _continuebang = _continuebang - 1
                         break
                 else:
@@ -55,8 +78,7 @@ def lxztordt(gc,tradedate,zt=True,turnrate=0.03):
         else:
             _conbandict[_continuebang] = [[s,_continueturn]]
     return _conbandict
-
-#lxztordt(['000425','600307','002307','000877'],'20170210')
+#print lxztordt(['000425','600307','002307','000877'],'20170210')
 
 def zfrankin(timeperiod,begindate,_tradedate,gc,x=0.5,turnrate=0.5,howlong=90):
     """
@@ -112,3 +134,4 @@ def zfrankin(timeperiod,begindate,_tradedate,gc,x=0.5,turnrate=0.5,howlong=90):
     zfranklist = [j for (i,j) in enumerate(zfranklist) if j[1] >= x and len(DataAPI.MktEqudAdjGet(endDate=_tradedate,ticker=j[0],isOpen='1',pandas='1'))>howlong]
     return zfranklist
 #zfrankin(20,'20170101','20170218',['000877.XSHE','000885.XSHE'],x=0.1)
+
