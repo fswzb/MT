@@ -39,7 +39,7 @@ def get_week_day(date):
         day = time.strptime(date,'%Y%m%d')
     return week_day_dict[day.tm_wday]
 
-def dailyReview(data):
+def dailyReview(data,alldivhis):
     voldata = data.sort('turnoverRate',ascending=0)
     _dtgpdic = {}
     _zsztdic = {}
@@ -47,11 +47,14 @@ def dailyReview(data):
     _chg =_highvolchance = 0.
     for index,row in voldata.iterrows():
         _iter = _iter+1
-        chg = row['closePrice']-row['preClosePrice']
-        chgmax = lib.mymath.rod(row['preClosePrice']*1.1,2)
-        chgmin = lib.mymath.rod(row['preClosePrice']*0.9,2)
-        chg_5 = lib.mymath.rod(row['preClosePrice']*0.95,2)
-        chg5 = lib.mymath.rod(row['preClosePrice']*1.05,2)          
+        #除权单天的开盘价除权
+        _divs = alldivhis[(alldivhis.secID == row['secID'])]
+        _closep = msum.AdjP(_divs,row['tradeDate'],row['actPreClosePrice'])
+        chg = row['closePrice']-_closep
+        chgmax = lib.mymath.rod(_closep*1.1,2)
+        chgmin = lib.mymath.rod(_closep*0.9,2)
+        chg_5 = lib.mymath.rod(_closep*0.95,2)
+        chg5 = lib.mymath.rod(_closep*1.05,2)          
         if(chg > 0):
             _zgp = _zgp+1
             if chgmax <= row['closePrice']\
@@ -64,22 +67,21 @@ def dailyReview(data):
             if chgmin == row['closePrice']\
             or (chg_5 == row['closePrice'] and row['secShortName'].find('S')>=0):
                 _dtgpdic[row['secID']] = row['turnoverRate']
-                if row['turnoverRate'] > 0.03 or row['highestPrice']-row['lowestPrice'] > 0:
-                    _zsdt = _zsdt+1
         _volval = _volval + row['turnoverValue']
         _negMarketValue_sum = _negMarketValue_sum + row['negMarketValue']
-        _chg = _chg + row['closePrice']/row['preClosePrice'] - 1
+        _chg = _chg + row['closePrice']/_closep - 1
         if(_iter == _numcandidate):
             _highvolret = _chg/_iter
             _highvolchance = float(_zgp)/_iter
             _highvolval = _volval
             _highvolrate = _volval/_negMarketValue_sum
-    return _chg/len(voldata),float(_zgp)/len(voldata),_highvolret,_highvolchance,_highvolval,_highvolval/_volval,_ztgp,_zsdt,_df5gp,_zsztdic,_highvolrate,_volval/_negMarketValue_sum,_dtgpdic
+    return _chg/len(voldata),float(_zgp)/len(voldata),_highvolret,_highvolchance,_highvolval,_highvolval/_volval,_ztgp,_df5gp,_zsztdic,_highvolrate,_volval/_negMarketValue_sum,_dtgpdic
 
 
 def MktequGet(_tradedate):
-    allgp = DataAPI.MktEqudAdjGet(tradeDate=_tradedate,secID=set_universe("A"),isOpen='1',pandas='1')
-    return allgp
+    allgp = DataAPI.MktEqudGet(tradeDate=_tradedate,secID=set_universe("A"),isOpen='1',pandas='1')
+    allDivhis = DataAPI.EquDivGet(secID=set_universe("A"),eventProcessCD='6',field=['secID','exDivDate','perShareDivRatio','perShareTransRatio','perCashDiv'],pandas="1")
+    return allgp,allDivhis
 
 def yesterdayztret(dic,date):
     z = 0.
@@ -100,13 +102,14 @@ def dailyfp(now,t1ztdic):
     Market(before,now,['399317.ZICN'])
     #T日复盘
     _tradedate=now
-    allgp = MktequGet(_tradedate)
-    _Tret,_Tchance,_Thighvolret,_Thchance,_Thighvolval,_Tratio,_Tzt,_Tzsdt,_Tdf5,_Tztdic,_Thturnrate,_Tturnrate,_Tdtdic = dailyReview(allgp)
+    allgp,allDivhis = MktequGet(_tradedate)
+    _Tret,_Tchance,_Thighvolret,_Thchance,_Thighvolval,_Tratio,_Tzt,_Tdf5,_Tztdic,_Thturnrate,_Tturnrate,_Tdtdic = dailyReview(allgp,allDivhis)
     _lxzt= msum.lxztordt(_Tztdic.keys(),_tradedate)
     _lxdt= msum.lxztordt(_Tdtdic.keys(),_tradedate,False)
     print "高换手赚钱概率%.2f%%(收益%.2f%%)成交量%.1f(换手率%.2f%% 大盘换手率%.2f%%)"%(round(_Thchance,3)*100,round(_Thighvolret,3)*100,_Thighvolval/100000000.,_Thturnrate*100,_Tturnrate*100)
     print "赚钱概率%.2f%%(收益%.2f%%)"%(round(_Tchance,3)*100,round(_Tret,3)*100)
-    print "真实涨跌停比 %d:%d"%(len(_Tztdic),_Tzsdt)
+    print "真实涨跌停比 %d:%d"%(len(_Tztdic),len(_Tdtdic))
+    #print [ k[0:6] for k,v in _Tztdic.iteritems()]
     _retlxzt=[]
     for k,v in _lxzt.iteritems(): 
         if k > 1:
@@ -128,9 +131,9 @@ def dailyfp(now,t1ztdic):
 
 from collections import deque
 gc2rank = deque(maxlen=300)
-#now='20160229'
+#now='20160225'
 _his = DataAPI.MktIdxdGet(endDate=now,field=[u'secShortName','tradeDate','openIndex','highestIndex','lowestIndex','closeIndex','turnoverVol'],indexID='399317.ZICN')
-_startIndex = 1#最近10个交易日
+_startIndex = 5#最近10个交易日
 _T1ztdic={}
 _T1dtdic={}
 for _date in _his['tradeDate'][-_startIndex:].values:
@@ -139,7 +142,7 @@ for _date in _his['tradeDate'][-_startIndex:].values:
     for _e in _lxztlist:
         gc2rank.append(_e)
     if len(gc2rank)>0:
-        _temp = msum.zfrankin(20,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
+        _temp = msum.zfrankin(30,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
         print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100),'%.2f%%'%(round(x[2],3)*100)],_temp))
 
 #export excel
