@@ -80,9 +80,8 @@ g_vardic = {}
 ticks = 0
 def initgvardic():
     global g_security_history
+    global g_vardic
     for k,v in g_security_history.items():
-        if k==0:
-            continue
         g_vardic[k]={'checked':False,'fenshi':[],'soldpoint':[],'unit':3,'soldticks':[],'closeprice':0,'highestprice':0,'lowestprice':0,'cost':v[2]}
     pass
 def handle_data(account): #在每个交易日开盘之前运行，用来执行策略，判断交易指令下达的时机和细节
@@ -94,15 +93,16 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
     if ticks ==  0:
         g_currentdate = account.current_date.strftime('%Y%m%d')
     for k,v in g_security_history.items():
-        if k == 0 or g_vardic[k]['checked']:
+        if g_vardic[k]['checked']:
             continue
         if ticks == 0:
-            df = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],field=['closePrice','highestPrice','lowestPrice'],isOpen='1',pandas='1')
+            df = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],field=['accumAdjFactor','closePrice','highestPrice','lowestPrice'],isOpen='1',pandas='1')
             g_vardic[k]['before']=len(df)
             if g_vardic[k]['before'] == 2:
                 g_vardic[k]['closeprice'] = df['closePrice'].iloc[0]
                 g_vardic[k]['highestprice'] = df['highestPrice'].iloc[-1]
                 g_vardic[k]['lowestprice'] = df['lowestPrice'].iloc[-1]
+                g_vardic[k]['cost'] = g_vardic[k]['cost']*df['accumAdjFactor'].iloc[-1]
         if g_vardic[k]['before'] != 2:
             continue #only T+1 day
         g_vardic[k]['fenshi'].append(account.reference_price[v[1]])
@@ -112,49 +112,57 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
     ticks = ticks+1
     return
 
-def continuefrom(filename, days=15):
+def continuefrom(filename,days=3,_index=-1):
     global excel
     excel = pd.read_excel(filename)
-    excel = excel[-days:]
+    if _index == -1:
+        excel = excel[-days:]
+    else:
+        excel = excel[_index-days:_index+1]
     _i = 1
     while _i <= g_imaxback:
         excel['T+%dOpenret'%_i][0] = 0
         _i = _i + 1
     _i = 0
-    while _i < len(excel):
+    while _i < len(excel)-1:
         g_security_history[_i] = excel.iloc[_i].tolist()
         _i=_i+1
     print g_security_history
     initgvardic()
-    return excel['tradedate'].iloc[1]
+    return excel['tradedate'].iloc[0],excel['tradedate'].iloc[-1]
 
 def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initialize,_handle_data,_refresh_rate,_freq):
     bt, perf,bt_by_account =  quartz.backtest(start = _continueday,end = _end,benchmark = _benchmark,universe = _universe,capital_base = _capital_base,initialize = _initialize,handle_data = _handle_data,refresh_rate = _refresh_rate,freq = _freq)
-    sumret = []
-    for n in range(0,240):
-        sumr = 0
-        for k,v in g_vardic.iteritems():
-            if(len(v['fenshi'])==0):
-                break
-            sumr = sumr + v['fenshi'][n]/v['cost']-1
-        sumret.append(sumr)
-    plt.title('return in time')
-    plt.plot(sumret,'y-')
-    plt.grid()
-    plt.xlim(0,239)
-    plt.xticks(range(0,240,15))
-    print '最大收益:',max(sumret), " ",'最大收益卖出时机是开盘后:',sumret.index(max(sumret)),'分钟'
-    print sumret
     pass
 start='20170101'
 continueday = start
 #print continueday
-end='20170523'
+end=someday(now,-1)
 ax = plt.subplots()
-recenttrancations = 10
+recenttrancations = 3
 for i in range(2,3):
     g_targetprice = i
-    continueday = someday(continuefrom('龙回头模拟交易20170324-20170526-EMA-2.xlsx',recenttrancations),1)
-    print continueday,'日以来最近的 ',recenttrancations,' 次交易'
-    startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq)
-
+    for j in range(190,258):
+        continueday,end = continuefrom('龙回头模拟交易V120160101-20170714-EMA-2.xlsx',recenttrancations,j)
+        print continueday,'~', end , recenttrancations,' 次交易'
+        print g_vardic
+        startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq)
+        print g_vardic
+        sumret = []
+        for n in range(0,240):
+            sumr = 0
+            for k,v in g_vardic.iteritems():
+                if(len(v['fenshi'])==0):
+                    break
+                sumr = sumr + v['fenshi'][n]/v['cost']-1
+            sumret.append(sumr)
+        plt.title('return in time')
+        plt.plot(sumret,'y-')
+        plt.grid()
+        plt.xlim(0,239)
+        plt.xticks(range(0,240,15))
+        plt.show()
+        plt.savefig('%d.svg'%(j))
+        print '最大收益:',max(sumret), " ",'最大收益卖出时机是开盘后:',sumret.index(max(sumret)),'分钟'
+        print sumret
+        
