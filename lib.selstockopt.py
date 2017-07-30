@@ -179,9 +179,9 @@ ma5f=5./4
 ma10f=10./9
 ma20f=20./19
 # period 涨幅连续统计时间，change，涨幅标准, return true or false, and how long after the max
-def continueup(dataturnover,datalowest,datahighest,period,change):
+def continueup(datalowest,datahighest,period,change):
     _ret = False
-    _len = len(dataturnover)
+    _len = len(datalowest)
     _start = _len-1
     while _ret == False and _start-period >=0:
         _reverseindexs = range(_start,_start-period,-1)
@@ -297,14 +297,14 @@ def iscandidate(s,_shis,target=2,incr=0.35,duration=5,_EMA=True,howlong=60,turnr
         _closep20 = MA20l[-5]
         _closep30 = MA30l[-5]
         #股价T日还在均线/golden上，T+1日可能破均线/golden,并且均线向上
-        if target == 2 _ma5 >= _closep*0.93\
+        if target == 2 and _ma5 >= _closep*0.93\
         or target == 4 and _closep20 < MA20 and MA10 < _closep and _ma10 > _closep*0.9\
         or target == 6 and _closep30 < MA30 and MA20 < _closep and _ma20 > _closep*0.9\
         or target == 1 and _closep10 < MA10 and golden8 < _closep and golden8 > _closep*0.9\
         or target == 3 and _closep20 < MA20 and golden618 < _closep and golden618 > _closep*0.9\
         or target == 5 and _closep30 < MA30 and golden5 < _closep and golden5 > _closep*0.9:
             #check if continously up
-            _cup,_dam = continueup(_shis['turnoverRate'][count-30:count],_lowestPrice,_highestPrice,duration,1+incr)
+            _cup,_dam = continueup(_lowestPrice,_highestPrice,duration,1+incr)
             if(_cup == False):
                 return False
             #check how long after max
@@ -361,8 +361,9 @@ def ztnum(_his,s,_Divhis=[]):
     return zt
 #测试代码
 '''
-end_d = '20170727 '
+end_d = '20170614'
 uni = ['002806.XSHE']#,'300331.xshe','603990.xshg', '603878.xshg', '603098.xshg', '002827.xshe', '000506.xshe','000595.xshe', '603036.xshg', '002826.xshe', '600099.xshg', '002829.xshe', '300080.xshe', '002830.xshe']
+
 uni = set_universe('A')
 
 for s in uni:
