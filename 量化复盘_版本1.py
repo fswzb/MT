@@ -87,7 +87,7 @@ def yesterdayztret(dic,date):
     z = 0.
     r = 0.
     today = date
-    ret = DataAPI.MktIdxdGet(tradeDate=today,indexID='399317.ZICN',pandas='1')
+    #ret = DataAPI.MktIdxdGet(tradeDate=today,indexID='399317.ZICN',pandas='1')
     for i in dic.keys():
         info = DataAPI.MktEqudAdjGet(tradeDate=today,secID=i,isOpen='1',pandas='1')
         if len(info) > 0:
@@ -133,16 +133,20 @@ from collections import deque
 gc2rank = deque(maxlen=300)
 #now='20160225'
 _his = DataAPI.MktIdxdGet(endDate=now,field=[u'secShortName','tradeDate','openIndex','highestIndex','lowestIndex','closeIndex','turnoverVol'],indexID='399317.ZICN')
-_startIndex = 5#最近10个交易日
+_startIndex = 10#最近10个交易日
 _T1ztdic={}
 _T1dtdic={}
 for _date in _his['tradeDate'][-_startIndex:].values:
     _date = _date.replace('-','')
     _lxztlist,_T1ztdic,_T1dtdic = dailyfp(_date,_T1ztdic)
-    for _e in _lxztlist:
+    for _e,v in _T1ztdic.items():
+        try:
+            gc2rank.remove(_e)
+        except ValueError:
+            pass
         gc2rank.append(_e)
     if len(gc2rank)>0:
-        _temp = msum.zfrankin(30,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3)
+        _temp = msum.zfrankin(30,someday(_date,-30*7/5),_date,list(gc2rank),x=0.4,turnrate=0.3,howlong=60)
         print "市场强势股涨幅排名: %s"%(map(lambda x:[x[0],'%.2f%%'%(round(x[1],3)*100),'%.2f%%'%(round(x[2],3)*100)],_temp))
 
 #export excel
