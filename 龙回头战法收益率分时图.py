@@ -140,37 +140,39 @@ start='20170101'
 continueday = start
 #print continueday
 end=someday(now,0)
-now = '2017-08-08'
+now = '2017-08-09'
 ax = plt.subplots()
 recenttrancations = 3
 for i in range(2,3):
     g_targetprice = i
     lastcontinue = lastend = '00000000'
-    for j in range(-3,0):#回测最近n天收益率分时图
+    for j in range(-4,0):#回测最近n天收益率分时图
         continueday,end = continuefrom('龙回头模拟交易V120160101-20170809-EMA-2.xlsx',j)
         if end > now:
             end = now
-        if lastcontinue != continueday and lastend != end:
-            lastcontinue = continueday
-            lastend = end
-            print continueday,'买入第二天龙回头交易股票收益率分时'
-            print [v[0] for k,v in g_security_history.iteritems()]
-            startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq)
-            sumret = []
-            for n in range(0,240):
-                sumr = 0
-                for k,v in g_vardic.iteritems():
-                    if(len(v['fenshi'])==0):
-                        break
-                    sumr = sumr + v['fenshi'][n]/v['cost']-1
-                sumret.append(sumr/len(g_vardic))
-            plt.title('return in time')
-            plt.plot(sumret,'y-')
-            plt.grid()
-            plt.xlim(0,239)
-            plt.xticks(range(0,240,15))
-            print '最大收益:',max(sumret), " ",'最大收益卖出时机是开盘后:',sumret.index(max(sumret)),'分钟'
-            #print sumret
-            plt.show()
-            plt.savefig('%d.svg'%(j))
+        if lastcontinue == continueday and lastend == end:
+            continue
+        lastcontinue = continueday
+        lastend = end
+
+        print continueday,'买入第二天龙回头交易股票收益率分时'
+        print [v[0] for k,v in g_security_history.iteritems()]
+        startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq)
+        sumret = []
+        for n in range(0,240):
+            sumr = 0
+            for k,v in g_vardic.iteritems():
+                if(len(v['fenshi'])==0):
+                    break
+                sumr = sumr + v['fenshi'][n]/v['cost']-1
+            sumret.append(sumr/len(g_vardic))
+        plt.title('return in time')
+        plt.plot(sumret,'y-')
+        plt.grid()
+        plt.xlim(0,239)
+        plt.xticks(range(0,240,15))
+        print '最大收益:',max(sumret), " ",'最大收益卖出时机是开盘后:',sumret.index(max(sumret)),'分钟'
+        #print sumret
+        plt.show()
+        plt.savefig('%d.svg'%(j))
         
