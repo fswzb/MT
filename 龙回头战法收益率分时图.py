@@ -99,13 +99,15 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
         if g_vardic[k]['checked']:
             continue
         if ticks == 0:
-            df = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],field=['accumAdjFactor','closePrice','highestPrice','lowestPrice'],isOpen='1',pandas='1')
+            df = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],field=['accumAdjFactor','preClosePrice','closePrice','highestPrice','lowestPrice'],isOpen='1',pandas='1')
             g_vardic[k]['before']=len(df)
             if g_vardic[k]['before'] == 2:
                 g_vardic[k]['closeprice'] = df['closePrice'].iloc[0]
                 g_vardic[k]['highestprice'] = df['highestPrice'].iloc[-1]
                 g_vardic[k]['lowestprice'] = df['lowestPrice'].iloc[-1]
-                g_vardic[k]['cost'] = g_vardic[k]['cost']*df['accumAdjFactor'].iloc[-1]
+                #g_vardic[k]['cost'] = g_vardic[k]['cost']*df['accumAdjFactor'].iloc[-1]
+                g_vardic[k]['cost'] = df['preClosePrice'].iloc[-1]
+            
         if g_vardic[k]['before'] != 2:
             continue #only T+1 day
         g_vardic[k]['fenshi'].append(account.reference_price[v[1]])
@@ -137,14 +139,17 @@ def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initiali
 start='20170101'
 continueday = start
 #print continueday
-end=someday(now,-1)
+end=someday(now,0)
+now = '2017-08-08'
 ax = plt.subplots()
 recenttrancations = 3
 for i in range(2,3):
     g_targetprice = i
     lastcontinue = lastend = '00000000'
-    for j in range(-4,0):#回测最近n天收益率分时图
-        continueday,end = continuefrom('龙回头模拟交易V120160101-20170725-EMA-2.xlsx',j)
+    for j in range(-3,0):#回测最近n天收益率分时图
+        continueday,end = continuefrom('龙回头模拟交易V120160101-20170809-EMA-2.xlsx',j)
+        if end > now:
+            end = now
         if lastcontinue != continueday and lastend != end:
             lastcontinue = continueday
             lastend = end
@@ -158,7 +163,7 @@ for i in range(2,3):
                     if(len(v['fenshi'])==0):
                         break
                     sumr = sumr + v['fenshi'][n]/v['cost']-1
-                sumret.append(sumr)
+                sumret.append(sumr/len(g_vardic))
             plt.title('return in time')
             plt.plot(sumret,'y-')
             plt.grid()
