@@ -84,6 +84,7 @@ ticks = 0
 def initgvardic():
     global g_security_history
     global g_vardic
+    g_vardic.clear()
     for k,v in g_security_history.items():
         g_vardic[k]={'checked':False,'fenshi':[],'soldpoint':[],'unit':3,'soldticks':[],'closeprice':0,'highestprice':0,'lowestprice':0,'cost':v[2]}
     pass
@@ -105,8 +106,7 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
                 g_vardic[k]['closeprice'] = df['closePrice'].iloc[0]
                 g_vardic[k]['highestprice'] = df['highestPrice'].iloc[-1]
                 g_vardic[k]['lowestprice'] = df['lowestPrice'].iloc[-1]
-                #g_vardic[k]['cost'] = g_vardic[k]['cost']*df['accumAdjFactor'].iloc[-1]
-                g_vardic[k]['cost'] = df['preClosePrice'].iloc[-1]
+                g_vardic[k]['cost'] = g_vardic[k]['cost']*df['accumAdjFactor'].iloc[-1]
             
         if g_vardic[k]['before'] != 2:
             continue #only T+1 day
@@ -119,6 +119,8 @@ def handle_data(account): #在每个交易日开盘之前运行，用来执行�
 
 def continuefrom(filename,_index=-1):
     excelfull = pd.read_excel(filename)
+    excelfull = excelfull.sort(['tradedate'],ascending=1)
+    excelfull.tradedate = [x.replace('-','') for x in excelfull.tradedate]
     excel = excelfull[(excelfull.tradedate == excelfull.iloc[_index]['tradedate'])]
     _i = 1
     while _i <= g_imaxback:
@@ -140,14 +142,24 @@ start='20170101'
 continueday = start
 #print continueday
 end=someday(now,0)
-now = '2017-08-09'
+now = '20170809'
 ax = plt.subplots()
 recenttrancations = 3
+cal = DataAPI.MktIdxdGet(ticker='399001',endDate='20170721',field=['tradeDate'])
+cal.tradeDate = [x.replace('-','') for x in cal.tradeDate]
+
 for i in range(2,3):
     g_targetprice = i
     lastcontinue = lastend = '00000000'
-    for j in range(-4,0):#回测最近n天收益率分时图
-        continueday,end = continuefrom('龙回头模拟交易V120160101-20170809-EMA-2.xlsx',j)
+    for j in range(1,129):#回测最近n天收益率分时图
+        continueday,end = continuefrom('龙回头模拟交易快速版~3_20160101-2017-07-21.xlsx',j)
+        find = False
+        for x in cal.tradeDate:
+            if find:
+                end = x
+                break
+            if x == continueday:
+                find = True
         if end > now:
             end = now
         if lastcontinue == continueday and lastend == end:
@@ -155,23 +167,38 @@ for i in range(2,3):
         lastcontinue = continueday
         lastend = end
 
-        print continueday,'买入第二天龙回头交易股票收益率分时'
-        print [v[0] for k,v in g_security_history.iteritems()]
+        print continueday,'买入',end,'卖出'
+        print [v[1] for k,v in g_security_history.iteritems()]
         startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq)
+        print [[k,v['cost'],v['closeprice']] for k,v in g_vardic.iteritems()]
         sumret = []
+        averagereturn = []
         for n in range(0,240):
             sumr = 0
+            ave = 0
             for k,v in g_vardic.iteritems():
                 if(len(v['fenshi'])==0):
                     break
-                sumr = sumr + v['fenshi'][n]/v['cost']-1
+                sumr = sumr + v['fenshi'][n]/v['closeprice']-1
+                ave = ave + v['fenshi'][n]/v['cost']-1
             sumret.append(sumr/len(g_vardic))
+            averagereturn.append(ave/len(g_vardic))
         plt.title('return in time')
-        plt.plot(sumret,'y-')
+        if sumret[0] > sumret[239]:
+            col = 'g-'
+        else:
+            col = 'r-'
+        plt.plot(sumret,col)
+        average=sum(sumret)/len(sumret)
+        plt.plot([0,239],[average,average],'b-')
+        plt.plot([0,239],[sumret[0],sumret[0]],col)
+        plt.plot([0,239],[sumret[239],sumret[239]],col)
         plt.grid()
         plt.xlim(0,239)
         plt.xticks(range(0,240,15))
-        print '最大收益:',max(sumret), " ",'最大收益卖出时机是开盘后:',sumret.index(max(sumret)),'分钟'
+        plt.ylim(min(sumret),max(sumret))
+        plt.yticks([x/1000.0 for x in range(int(min(sumret)*1000),int(max(sumret)*1000+5),5)])
+        print '第二天平均涨幅:',average, " ",'开盘涨幅:',sumret[0],' ','收盘涨幅:',sumret[239],'平均收益：',sum(averagereturn)/len(averagereturn)
         #print sumret
         plt.show()
         plt.savefig('%d.svg'%(j))
