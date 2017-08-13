@@ -37,12 +37,13 @@ end = now   # 回测结束时间
 benchmark = 'HS300'    # 参考标准
 universe = DynamicUniverse('A').apply_filter(Factor.VOL10.nlarge(_numcandidate))#&Factor.REVS10.nlarge(_numcandiate)) #set_universe('A') # 证券池，支持股票和基金
 capital_base = 2000000  # 起始资金
-refresh_rate = 1       # 调仓频率，即每 refresh_rate 个交易日执行一次 handle_data() 函数
+refresh_rate = 60       # 调仓频率，即每 refresh_rate 个交易日执行一次 handle_data() 函数
 freq = 'm'
 if freq == 'm':
     g_ifreq = 240
 else:
     g_ifreq = 1
+refreshstep = g_ifreq/refresh_rate
 g_imaxback = 5 #最大回测天数 T+imaxback后的收益
 g_targetprice = 3#买入的价格，1，3，5对应黄金分割0.809，0.618，0.5。2，4，6对应5日10日20日均线价格
 
@@ -86,34 +87,29 @@ def initgvardic():
     global g_vardic
     g_vardic.clear()
     for k,v in g_security_history.items():
-        g_vardic[k]={'checked':False,'fenshi':[],'soldpoint':[],'unit':3,'soldticks':[],'closeprice':0,'highestprice':0,'lowestprice':0,'cost':v[2]}
+        g_vardic[k]={'checked':False,'fenshi':[],'soldpoint':[],'unit':3,'soldticks':[],'precloseprice':0,'highestprice':0,'lowestprice':0,'cost':v[2]}
     pass
 def handle_data(account): #在每个交易日开盘之前运行，用来执行策略，判断交易指令下达的时机和细节
     global g_vardic
     global ticks
     global g_security_history
     global g_currentdate
-    ticks = ticks%g_ifreq
+    ticks = ticks%refreshstep
     if ticks ==  0:
         g_currentdate = account.current_date.strftime('%Y%m%d')
     for k,v in g_security_history.items():
-        if g_vardic[k]['checked']:
-            continue
         if ticks == 0:
-            df = DataAPI.MktEqudAdjGet(beginDate=v[0],endDate=g_currentdate,secID=v[1],field=['accumAdjFactor','preClosePrice','closePrice','highestPrice','lowestPrice'],isOpen='1',pandas='1')
+            df = DataAPI.MktEqudAdjGet(beginDate=g_currentdate,endDate=g_currentdate,secID=v[1],field=['accumAdjFactor','preClosePrice','highestPrice','lowestPrice'],isOpen='1',pandas='1')
             g_vardic[k]['before']=len(df)
-            if g_vardic[k]['before'] == 2:
-                g_vardic[k]['closeprice'] = df['closePrice'].iloc[0]
+            if g_vardic[k]['before'] == 1:
+                g_vardic[k]['precloseprice'] = df['preClosePrice'].iloc[-1]
                 g_vardic[k]['highestprice'] = df['highestPrice'].iloc[-1]
                 g_vardic[k]['lowestprice'] = df['lowestPrice'].iloc[-1]
                 g_vardic[k]['cost'] = g_vardic[k]['cost']*df['accumAdjFactor'].iloc[-1]
-            
-        if g_vardic[k]['before'] != 2:
+        if g_vardic[k]['before'] != 1:
+            print 'error:',g_vardic[k]
             continue #only T+1 day
         g_vardic[k]['fenshi'].append(account.reference_price[v[1]])
-        if ticks == 239:
-            g_vardic[k]['checked']=True
-               
     ticks = ticks+1
     return
 
@@ -140,14 +136,14 @@ def startsimulate(_continueday,_end,_benchmark,_universe,_capital_base,_initiali
     pass
 start='20170101'
 continueday = start
-#print continueday
 end=someday(now,0)
 now = '20170809'
 ax = plt.subplots()
 recenttrancations = 3
 cal = DataAPI.MktIdxdGet(ticker='399001',endDate='20170721',field=['tradeDate'])
 cal.tradeDate = [x.replace('-','') for x in cal.tradeDate]
-
+averageret = []
+singleret = []
 for i in range(2,3):
     g_targetprice = i
     lastcontinue = lastend = '00000000'
@@ -169,37 +165,43 @@ for i in range(2,3):
 
         print continueday,'买入',end,'卖出'
         print [v[1] for k,v in g_security_history.iteritems()]
-        startsimulate(continueday,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq)
-        print [[k,v['cost'],v['closeprice']] for k,v in g_vardic.iteritems()]
+        startsimulate(end,end,benchmark,universe,capital_base,initialize,handle_data,refresh_rate,freq)
+        print [[k,v['cost'],v['precloseprice']] for k,v in g_vardic.iteritems()]
         sumret = []
         averagereturn = []
-        for n in range(0,240):
+        for n in range(0,refreshstep):
             sumr = 0
             ave = 0
             for k,v in g_vardic.iteritems():
                 if(len(v['fenshi'])==0):
                     break
-                sumr = sumr + v['fenshi'][n]/v['closeprice']-1
+                sumr = sumr + v['fenshi'][n]/v['precloseprice']-1
                 ave = ave + v['fenshi'][n]/v['cost']-1
             sumret.append(sumr/len(g_vardic))
             averagereturn.append(ave/len(g_vardic))
         plt.title('return in time')
-        if sumret[0] > sumret[239]:
+        if sumret[0] > sumret[refreshstep-1]:
             col = 'g-'
         else:
             col = 'r-'
         plt.plot(sumret,col)
         average=sum(sumret)/len(sumret)
-        plt.plot([0,239],[average,average],'b-')
-        plt.plot([0,239],[sumret[0],sumret[0]],col)
-        plt.plot([0,239],[sumret[239],sumret[239]],col)
+        plt.plot([0,refreshstep-1],[average,average],'b-')
+        plt.plot([0,refreshstep-1],[sumret[0],sumret[0]],col)
+        plt.plot([0,refreshstep-1],[sumret[refreshstep-1],sumret[refreshstep-1]],col)
         plt.grid()
-        plt.xlim(0,239)
-        plt.xticks(range(0,240,15))
+        plt.xlim(0,refreshstep-1)
+        plt.xticks(range(0,refreshstep,1))
         plt.ylim(min(sumret),max(sumret))
         plt.yticks([x/1000.0 for x in range(int(min(sumret)*1000),int(max(sumret)*1000+5),5)])
-        print '第二天平均涨幅:',average, " ",'开盘涨幅:',sumret[0],' ','收盘涨幅:',sumret[239],'平均收益：',sum(averagereturn)/len(averagereturn)
-        #print sumret
+        print '第二天平均涨幅:',average, " ",'开盘涨幅:',sumret[0],' ','收盘涨幅:',sumret[refreshstep-1],'平均收益：',sum(averagereturn)/len(averagereturn)
+        averageret.append(sum(averagereturn)/len(averagereturn))
+        for k,v in g_vardic.iteritems():
+            if(len(v['fenshi'])==0):
+                break
+            singleret.append(sum(v['fenshi'])/v['cost']/len(v['fenshi']) -1)
         plt.show()
-        plt.savefig('%d.svg'%(j))
+        #plt.savefig('%d.svg'%(j))
         
+print averageret
+print singleret
